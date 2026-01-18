@@ -9,8 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Spinner } from '@/components/ui/spinner';
 import type { Form } from '@/types';
-import { Plus, Edit, Trash2, Eye, ExternalLink } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, ExternalLink, FileText } from 'lucide-react';
 
 const FormsListing: React.FC = () => {
   const { t } = useTranslation();
@@ -22,6 +23,12 @@ const FormsListing: React.FC = () => {
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [formName, setFormName] = useState('');
   const [error, setError] = useState('');
+  
+  // Loading states for individual operations
+  const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const navigate = useNavigate();
 
   const fetchForms = async () => {
@@ -45,6 +52,7 @@ const FormsListing: React.FC = () => {
       return;
     }
 
+    setIsCreating(true);
     try {
       const response = await formsApi.createForm({ name: formName });
       setIsCreateDialogOpen(false);
@@ -54,6 +62,8 @@ const FormsListing: React.FC = () => {
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       setError(error.response?.data?.error || t('errors.failedToCreate'));
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -63,6 +73,7 @@ const FormsListing: React.FC = () => {
       return;
     }
 
+    setIsEditing(true);
     try {
       await formsApi.updateForm(selectedForm.id, { name: formName });
       setIsEditDialogOpen(false);
@@ -72,12 +83,15 @@ const FormsListing: React.FC = () => {
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       setError(error.response?.data?.error || t('errors.failedToUpdate'));
+    } finally {
+      setIsEditing(false);
     }
   };
 
   const handleDeleteForm = async () => {
     if (!selectedForm) return;
 
+    setIsDeleting(true);
     try {
       await formsApi.deleteForm(selectedForm.id);
       setIsDeleteDialogOpen(false);
@@ -85,6 +99,8 @@ const FormsListing: React.FC = () => {
       fetchForms();
     } catch (err) {
       console.error('Failed to delete form:', err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -128,6 +144,7 @@ const FormsListing: React.FC = () => {
         ) : forms.length === 0 ? (
           <Card className="text-center py-12">
             <CardContent>
+              <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 mb-4">{t('forms.noForms')}</p>
               <Button onClick={() => { setFormName(''); setError(''); setIsCreateDialogOpen(true); }}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -141,20 +158,25 @@ const FormsListing: React.FC = () => {
               <Card key={form.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{form.name}</CardTitle>
-                      <CardDescription>
-                        {form.is_published ? (
-                          <span className="text-green-600 font-medium">{t('forms.published')}</span>
-                        ) : (
-                          <span className="text-yellow-600 font-medium">{t('forms.draft')}</span>
-                        )}
-                      </CardDescription>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-lg">
+                        <FileText className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">{form.name}</CardTitle>
+                        <CardDescription>
+                          {form.is_published ? (
+                            <span className="text-green-600 font-medium">{t('forms.published')}</span>
+                          ) : (
+                            <span className="text-yellow-600 font-medium">{t('forms.draft')}</span>
+                          )}
+                        </CardDescription>
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -204,86 +226,109 @@ const FormsListing: React.FC = () => {
         )}
 
         {/* Create Form Dialog */}
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent>
+        <Dialog open={isCreateDialogOpen} onOpenChange={(open) => !isCreating && setIsCreateDialogOpen(open)}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{t('forms.createNew')}</DialogTitle>
               <DialogDescription>{t('forms.uniqueNameHint')}</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-6 py-6">
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="formName">{t('forms.formName')}</Label>
                 <Input
                   id="formName"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder={t('forms.enterFormName')}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateForm()}
+                  onKeyDown={(e) => e.key === 'Enter' && !isCreating && handleCreateForm()}
+                  disabled={isCreating}
+                  className="h-11"
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsCreateDialogOpen(false)}
+                disabled={isCreating}
+              >
                 {t('common.cancel')}
               </Button>
-              <Button onClick={handleCreateForm}>{t('common.create')}</Button>
+              <Button onClick={handleCreateForm} disabled={isCreating}>
+                {isCreating && <Spinner className="mr-2" size="sm" />}
+                {isCreating ? t('common.loading') : t('common.create')}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
         {/* Edit Form Name Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent>
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => !isEditing && setIsEditDialogOpen(open)}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{t('forms.renameForm')}</DialogTitle>
               <DialogDescription>{t('forms.uniqueNameHint')}</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-6 py-6">
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="editFormName">{t('forms.formName')}</Label>
                 <Input
                   id="editFormName"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder={t('forms.enterFormName')}
-                  onKeyDown={(e) => e.key === 'Enter' && handleEditFormName()}
+                  onKeyDown={(e) => e.key === 'Enter' && !isEditing && handleEditFormName()}
+                  disabled={isEditing}
+                  className="h-11"
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEditDialogOpen(false)}
+                disabled={isEditing}
+              >
                 {t('common.cancel')}
               </Button>
-              <Button onClick={handleEditFormName}>{t('common.save')}</Button>
+              <Button onClick={handleEditFormName} disabled={isEditing}>
+                {isEditing && <Spinner className="mr-2" size="sm" />}
+                {isEditing ? t('common.loading') : t('common.save')}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
         {/* Delete Confirmation Dialog */}
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent>
+        <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => !isDeleting && setIsDeleteDialogOpen(open)}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{t('forms.deleteForm')}</DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="pt-2">
                 {t('forms.deleteFormConfirm', { name: selectedForm?.name })}
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <DialogFooter className="gap-2 sm:gap-0 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsDeleteDialogOpen(false)}
+                disabled={isDeleting}
+              >
                 {t('common.cancel')}
               </Button>
-              <Button variant="destructive" onClick={handleDeleteForm}>
-                {t('common.delete')}
+              <Button variant="destructive" onClick={handleDeleteForm} disabled={isDeleting}>
+                {isDeleting && <Spinner className="mr-2" size="sm" />}
+                {isDeleting ? t('common.loading') : t('common.delete')}
               </Button>
             </DialogFooter>
           </DialogContent>

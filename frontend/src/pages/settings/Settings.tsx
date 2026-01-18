@@ -11,8 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Spinner } from '@/components/ui/spinner';
 import type { Stats } from '@/types';
-import { FileText, Send, Database, User, Lock, BarChart3, Trash2 } from 'lucide-react';
+import { FileText, Send, Database, User, Lock, BarChart3 } from 'lucide-react';
 
 const Settings: React.FC = () => {
   const { t } = useTranslation();
@@ -165,7 +166,7 @@ const Settings: React.FC = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">{t('settings.profile')}</span>
@@ -178,20 +179,17 @@ const Settings: React.FC = () => {
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">{t('settings.stats')}</span>
             </TabsTrigger>
-            <TabsTrigger value="danger" className="flex items-center gap-2 text-red-600">
-              <Trash2 className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('settings.danger')}</span>
-            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="profile" className="mt-6">
+          <TabsContent value="profile" className="mt-6 space-y-6">
+            {/* Profile Information Card */}
             <Card>
               <CardHeader>
                 <CardTitle>{t('settings.profileInfo')}</CardTitle>
                 <CardDescription>{t('settings.profileInfoDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleUpdateProfile} className="space-y-4">
+                <form onSubmit={handleUpdateProfile} className="space-y-6">
                   {profileError && (
                     <Alert variant="destructive">
                       <AlertDescription>{profileError}</AlertDescription>
@@ -202,37 +200,76 @@ const Settings: React.FC = () => {
                       <AlertDescription>{profileSuccess}</AlertDescription>
                     </Alert>
                   )}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>{t('auth.firstName')}</Label>
+                      <Label htmlFor="firstName">{t('auth.firstName')}</Label>
                       <Input
+                        id="firstName"
                         value={profileForm.first_name}
                         onChange={(e) =>
                           setProfileForm({ ...profileForm, first_name: e.target.value })
                         }
+                        placeholder={t('auth.firstName')}
+                        className="h-11"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>{t('auth.lastName')}</Label>
+                      <Label htmlFor="lastName">{t('auth.lastName')}</Label>
                       <Input
+                        id="lastName"
                         value={profileForm.last_name}
                         onChange={(e) =>
                           setProfileForm({ ...profileForm, last_name: e.target.value })
                         }
+                        placeholder={t('auth.lastName')}
+                        className="h-11"
                         required
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>{t('common.email')}</Label>
-                    <Input value={user?.email || ''} disabled />
-                    <p className="text-xs text-gray-500">{t('settings.emailCannotChange')}</p>
+                    <Label htmlFor="email">{t('common.email')}</Label>
+                    <Input 
+                      id="email"
+                      value={user?.email || ''} 
+                      disabled 
+                      className="h-11 bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">{t('settings.emailCannotChange')}</p>
                   </div>
                   <Button type="submit" disabled={isUpdatingProfile}>
+                    {isUpdatingProfile && <Spinner className="mr-2" size="sm" />}
                     {isUpdatingProfile ? t('settings.savingChanges') : t('settings.saveChanges')}
                   </Button>
                 </form>
+              </CardContent>
+            </Card>
+
+            {/* Danger Zone Card - Delete Account */}
+            <Card className="border-red-200">
+              <CardHeader>
+                <CardTitle className="text-red-600">{t('settings.dangerZone')}</CardTitle>
+                <CardDescription>
+                  {t('settings.dangerZoneDesc')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h3 className="font-medium">{t('settings.deleteAccount')}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {t('settings.deleteAccountDesc')}
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                    className="shrink-0"
+                  >
+                    {t('settings.deleteAccount')}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -244,7 +281,7 @@ const Settings: React.FC = () => {
                 <CardDescription>{t('settings.changePasswordDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleUpdatePassword} className="space-y-4">
+                <form onSubmit={handleUpdatePassword} className="space-y-6">
                   {passwordError && (
                     <Alert variant="destructive">
                       <AlertDescription>{passwordError}</AlertDescription>
@@ -256,39 +293,49 @@ const Settings: React.FC = () => {
                     </Alert>
                   )}
                   <div className="space-y-2">
-                    <Label>{t('auth.currentPassword')}</Label>
+                    <Label htmlFor="currentPassword">{t('auth.currentPassword')}</Label>
                     <Input
+                      id="currentPassword"
                       type="password"
                       value={passwordForm.old_password}
                       onChange={(e) =>
                         setPasswordForm({ ...passwordForm, old_password: e.target.value })
                       }
+                      placeholder={t('auth.currentPassword')}
+                      className="h-11"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>{t('auth.newPassword')}</Label>
+                    <Label htmlFor="newPassword">{t('auth.newPassword')}</Label>
                     <Input
+                      id="newPassword"
                       type="password"
                       value={passwordForm.new_password}
                       onChange={(e) =>
                         setPasswordForm({ ...passwordForm, new_password: e.target.value })
                       }
+                      placeholder={t('auth.newPassword')}
+                      className="h-11"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>{t('auth.confirmPassword')}</Label>
+                    <Label htmlFor="confirmPassword">{t('auth.confirmPassword')}</Label>
                     <Input
+                      id="confirmPassword"
                       type="password"
                       value={passwordForm.confirm_password}
                       onChange={(e) =>
                         setPasswordForm({ ...passwordForm, confirm_password: e.target.value })
                       }
+                      placeholder={t('auth.confirmPassword')}
+                      className="h-11"
                       required
                     />
                   </div>
                   <Button type="submit" disabled={isUpdatingPassword}>
+                    {isUpdatingPassword && <Spinner className="mr-2" size="sm" />}
                     {isUpdatingPassword ? t('settings.updatingPassword') : t('settings.updatePassword')}
                   </Button>
                 </form>
@@ -315,7 +362,7 @@ const Settings: React.FC = () => {
                   return (
                     <Card key={stat.title}>
                       <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
                           {stat.title}
                         </CardTitle>
                         <div className={`p-2 rounded-lg ${stat.bgColor}`}>
@@ -331,56 +378,36 @@ const Settings: React.FC = () => {
               )}
             </div>
           </TabsContent>
-
-          <TabsContent value="danger" className="mt-6">
-            <Card className="border-red-200">
-              <CardHeader>
-                <CardTitle className="text-red-600">{t('settings.dangerZone')}</CardTitle>
-                <CardDescription>
-                  {t('settings.dangerZoneDesc')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-medium">{t('settings.deleteAccount')}</h3>
-                    <p className="text-sm text-gray-500">
-                      {t('settings.deleteAccountDesc')}
-                    </p>
-                  </div>
-                  <Button
-                    variant="destructive"
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                  >
-                    {t('settings.deleteAccount')}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
 
         {/* Delete Account Dialog */}
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent>
+        <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => !isDeleting && setIsDeleteDialogOpen(open)}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{t('settings.deleteAccount')}</DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="pt-2">
                 {t('settings.deleteAccountConfirm')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>{t('settings.typeDeleteConfirm')}</Label>
+                <Label htmlFor="deleteConfirmation">{t('settings.typeDeleteConfirm')}</Label>
                 <Input
+                  id="deleteConfirmation"
                   value={deleteConfirmation}
                   onChange={(e) => setDeleteConfirmation(e.target.value)}
                   placeholder="DELETE"
+                  className="h-11"
+                  disabled={isDeleting}
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsDeleteDialogOpen(false)}
+                disabled={isDeleting}
+              >
                 {t('common.cancel')}
               </Button>
               <Button
@@ -388,6 +415,7 @@ const Settings: React.FC = () => {
                 onClick={handleDeleteAccount}
                 disabled={deleteConfirmation !== 'DELETE' || isDeleting}
               >
+                {isDeleting && <Spinner className="mr-2" size="sm" />}
                 {isDeleting ? t('settings.deleting') : t('settings.deleteAccount')}
               </Button>
             </DialogFooter>

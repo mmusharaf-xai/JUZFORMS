@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Spinner } from '@/components/ui/spinner';
 import type { Database } from '@/types';
 import { Plus, Edit, Trash2, Database as DatabaseIcon } from 'lucide-react';
 import { format } from 'date-fns';
@@ -23,6 +24,12 @@ const DatabaseListing: React.FC = () => {
   const [selectedDatabase, setSelectedDatabase] = useState<Database | null>(null);
   const [databaseName, setDatabaseName] = useState('');
   const [error, setError] = useState('');
+  
+  // Loading states for individual operations
+  const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const navigate = useNavigate();
 
   const fetchDatabases = async () => {
@@ -46,15 +53,19 @@ const DatabaseListing: React.FC = () => {
       return;
     }
 
+    setIsCreating(true);
     try {
-      await databaseApi.createDatabase({ name: databaseName });
+      const response = await databaseApi.createDatabase({ name: databaseName });
       setIsCreateDialogOpen(false);
       setDatabaseName('');
       setError('');
-      fetchDatabases();
+      // Redirect to the newly created database
+      navigate(`/databases/${response.data.database.id}`);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       setError(error.response?.data?.error || t('errors.failedToCreate'));
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -64,6 +75,7 @@ const DatabaseListing: React.FC = () => {
       return;
     }
 
+    setIsEditing(true);
     try {
       await databaseApi.updateDatabase(selectedDatabase.id, { name: databaseName });
       setIsEditDialogOpen(false);
@@ -73,12 +85,15 @@ const DatabaseListing: React.FC = () => {
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       setError(error.response?.data?.error || t('errors.failedToUpdate'));
+    } finally {
+      setIsEditing(false);
     }
   };
 
   const handleDeleteDatabase = async () => {
     if (!selectedDatabase) return;
 
+    setIsDeleting(true);
     try {
       await databaseApi.deleteDatabase(selectedDatabase.id);
       setIsDeleteDialogOpen(false);
@@ -86,6 +101,8 @@ const DatabaseListing: React.FC = () => {
       fetchDatabases();
     } catch (err) {
       console.error('Failed to delete database:', err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -192,86 +209,109 @@ const DatabaseListing: React.FC = () => {
         )}
 
         {/* Create Database Dialog */}
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent>
+        <Dialog open={isCreateDialogOpen} onOpenChange={(open) => !isCreating && setIsCreateDialogOpen(open)}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{t('database.createNew')}</DialogTitle>
               <DialogDescription>{t('database.uniqueNameHint')}</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-6 py-6">
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="databaseName">{t('database.databaseName')}</Label>
                 <Input
                   id="databaseName"
                   value={databaseName}
                   onChange={(e) => setDatabaseName(e.target.value)}
                   placeholder={t('database.enterDatabaseName')}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateDatabase()}
+                  onKeyDown={(e) => e.key === 'Enter' && !isCreating && handleCreateDatabase()}
+                  disabled={isCreating}
+                  className="h-11"
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsCreateDialogOpen(false)}
+                disabled={isCreating}
+              >
                 {t('common.cancel')}
               </Button>
-              <Button onClick={handleCreateDatabase}>{t('common.create')}</Button>
+              <Button onClick={handleCreateDatabase} disabled={isCreating}>
+                {isCreating && <Spinner className="mr-2" size="sm" />}
+                {isCreating ? t('common.loading') : t('common.create')}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
         {/* Edit Database Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent>
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => !isEditing && setIsEditDialogOpen(open)}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{t('database.renameDatabase')}</DialogTitle>
               <DialogDescription>{t('database.uniqueNameHint')}</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-6 py-6">
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="editDatabaseName">{t('database.databaseName')}</Label>
                 <Input
                   id="editDatabaseName"
                   value={databaseName}
                   onChange={(e) => setDatabaseName(e.target.value)}
                   placeholder={t('database.enterDatabaseName')}
-                  onKeyDown={(e) => e.key === 'Enter' && handleEditDatabase()}
+                  onKeyDown={(e) => e.key === 'Enter' && !isEditing && handleEditDatabase()}
+                  disabled={isEditing}
+                  className="h-11"
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEditDialogOpen(false)}
+                disabled={isEditing}
+              >
                 {t('common.cancel')}
               </Button>
-              <Button onClick={handleEditDatabase}>{t('common.save')}</Button>
+              <Button onClick={handleEditDatabase} disabled={isEditing}>
+                {isEditing && <Spinner className="mr-2" size="sm" />}
+                {isEditing ? t('common.loading') : t('common.save')}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
         {/* Delete Confirmation Dialog */}
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent>
+        <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => !isDeleting && setIsDeleteDialogOpen(open)}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{t('database.deleteDatabase')}</DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="pt-2">
                 {t('database.deleteDatabaseConfirm', { name: selectedDatabase?.name })}
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <DialogFooter className="gap-2 sm:gap-0 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsDeleteDialogOpen(false)}
+                disabled={isDeleting}
+              >
                 {t('common.cancel')}
               </Button>
-              <Button variant="destructive" onClick={handleDeleteDatabase}>
-                {t('common.delete')}
+              <Button variant="destructive" onClick={handleDeleteDatabase} disabled={isDeleting}>
+                {isDeleting && <Spinner className="mr-2" size="sm" />}
+                {isDeleting ? t('common.loading') : t('common.delete')}
               </Button>
             </DialogFooter>
           </DialogContent>
