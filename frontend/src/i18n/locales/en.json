@@ -63,7 +63,9 @@
     "databases": "Databases",
     "settings": "Settings",
     "profile": "Profile",
-    "stats": "Statistics"
+    "stats": "Statistics",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar"
   },
   "forms": {
     "title": "Forms",

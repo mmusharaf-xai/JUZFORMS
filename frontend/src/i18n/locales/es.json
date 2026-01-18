@@ -63,7 +63,9 @@
     "databases": "Bases de datos",
     "settings": "Configuración",
     "profile": "Perfil",
-    "stats": "Estadísticas"
+    "stats": "Estadísticas",
+    "collapseSidebar": "Contraer barra lateral",
+    "expandSidebar": "Expandir barra lateral"
   },
   "forms": {
     "title": "Formularios",
@@ -225,6 +227,8 @@
     "profile": "Perfil",
     "password": "Contraseña",
     "stats": "Estadísticas",
+    "collapseSidebar": "Contraer barra lateral",
+    "expandSidebar": "Expandir barra lateral",
     "danger": "Peligro",
     "profileInfo": "Información del perfil",
     "profileInfoDesc": "Actualiza tu información personal",
