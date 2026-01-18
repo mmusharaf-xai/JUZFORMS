@@ -64,6 +64,7 @@ const DatabaseDetails: React.FC = () => {
   // Filter drawer
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [tempFilters, setTempFilters] = useState<FilterState[]>([]);
+  const [isApplyingFilters, setIsApplyingFilters] = useState(false);
 
   // Delete dialogs
   const [isDeleteColumnDialogOpen, setIsDeleteColumnDialogOpen] = useState(false);
@@ -76,17 +77,18 @@ const DatabaseDetails: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [filters, setFilters] = useState<FilterState[]>([]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (filtersToApply?: FilterState[]) => {
     if (!id) return;
     try {
       const dbResponse = await databaseApi.getDatabase(id);
       setDatabase(dbResponse.data.database);
       setColumns(dbResponse.data.columns);
 
+      const activeFilters = filtersToApply !== undefined ? filtersToApply : filters;
       const rowsResponse = await databaseApi.getRows(id, {
         sort_by: sortBy || undefined,
         sort_order: sortOrder,
-        filters: filters.length > 0 ? JSON.stringify(filters) : undefined,
+        filters: activeFilters.length > 0 ? JSON.stringify(activeFilters) : undefined,
       });
       setRows(rowsResponse.data.rows);
     } catch (err: unknown) {
@@ -235,9 +237,25 @@ const DatabaseDetails: React.FC = () => {
     setTempFilters(tempFilters.filter((_, i) => i !== index));
   };
 
-  const applyFilters = () => {
-    setFilters(tempFilters);
-    setIsFilterDrawerOpen(false);
+  const applyFilters = async () => {
+    if (!id) return;
+    
+    setIsApplyingFilters(true);
+    try {
+      const rowsResponse = await databaseApi.getRows(id, {
+        sort_by: sortBy || undefined,
+        sort_order: sortOrder,
+        filters: tempFilters.length > 0 ? JSON.stringify(tempFilters) : undefined,
+      });
+      setRows(rowsResponse.data.rows);
+      setFilters(tempFilters);
+      setIsFilterDrawerOpen(false);
+    } catch (err) {
+      console.error('Failed to apply filters:', err);
+      setError(t('errors.failedToLoad'));
+    } finally {
+      setIsApplyingFilters(false);
+    }
   };
 
   const getPlaceholderForType = (type: string): string => {
@@ -665,11 +683,18 @@ const DatabaseDetails: React.FC = () => {
             </div>
           </DrawerContent>
           <DrawerFooter>
-            <Button variant="outline" onClick={() => setIsFilterDrawerOpen(false)}>
+            <Button variant="outline" onClick={() => setIsFilterDrawerOpen(false)} disabled={isApplyingFilters}>
               {t('common.cancel')}
             </Button>
-            <Button onClick={applyFilters}>
-              {t('database.applyFilters')}
+            <Button onClick={applyFilters} disabled={isApplyingFilters}>
+              {isApplyingFilters ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  {t('database.applyFilters')}
+                </>
+              ) : (
+                t('database.applyFilters')
+              )}
             </Button>
           </DrawerFooter>
         </Drawer>

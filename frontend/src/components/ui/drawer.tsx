@@ -10,9 +10,10 @@ interface DrawerProps {
   title?: string;
   description?: string;
   className?: string;
+  footer?: React.ReactNode;
 }
 
-export function Drawer({ open, onOpenChange, children, title, description, className }: DrawerProps) {
+export function Drawer({ open, onOpenChange, children, title, description, className, footer }: DrawerProps) {
   // Close on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -38,6 +39,15 @@ export function Drawer({ open, onOpenChange, children, title, description, class
 
   if (!open) return null;
 
+  // Separate DrawerFooter from other children
+  const childArray = React.Children.toArray(children);
+  const footerChild = childArray.find(
+    (child) => React.isValidElement(child) && child.type === DrawerFooter
+  );
+  const contentChildren = childArray.filter(
+    (child) => !(React.isValidElement(child) && child.type === DrawerFooter)
+  );
+
   return (
     <div className="fixed inset-0 z-50">
       {/* Backdrop */}
@@ -56,7 +66,7 @@ export function Drawer({ open, onOpenChange, children, title, description, class
       >
         {/* Header */}
         {(title || description) && (
-          <div className="flex items-start justify-between border-b px-6 py-4">
+          <div className="flex items-start justify-between border-b px-6 py-4 shrink-0">
             <div>
               {title && <h2 className="text-lg font-semibold">{title}</h2>}
               {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
@@ -72,10 +82,17 @@ export function Drawer({ open, onOpenChange, children, title, description, class
           </div>
         )}
         
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto">
-          {children}
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {contentChildren}
         </div>
+
+        {/* Footer - always at bottom */}
+        {(footer || footerChild) && (
+          <div className="shrink-0">
+            {footer || footerChild}
+          </div>
+        )}
       </div>
     </div>
   );
