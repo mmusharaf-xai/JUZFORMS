@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Spinner } from '@/components/ui/spinner';
 import type { Database, DatabaseColumn, DatabaseRow, ColumnType } from '@/types';
 import { ArrowLeft, Plus, Edit, Trash2, ArrowUpDown, Filter, X } from 'lucide-react';
 
@@ -289,8 +290,8 @@ const DatabaseDetails: React.FC = () => {
   if (isLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
+          <Spinner size="lg" />
         </div>
       </Layout>
     );

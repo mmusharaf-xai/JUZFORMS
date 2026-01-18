@@ -210,18 +210,18 @@ const DatabaseListing: React.FC = () => {
 
         {/* Create Database Dialog */}
         <Dialog open={isCreateDialogOpen} onOpenChange={(open) => !isCreating && setIsCreateDialogOpen(open)}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{t('database.createNew')}</DialogTitle>
               <DialogDescription>{t('database.uniqueNameHint')}</DialogDescription>
             </DialogHeader>
-            <div className="space-y-6 py-6">
+            <div className="py-4">
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="mb-4">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <Label htmlFor="databaseName">{t('database.databaseName')}</Label>
                 <Input
                   id="databaseName"
@@ -230,11 +230,10 @@ const DatabaseListing: React.FC = () => {
                   placeholder={t('database.enterDatabaseName')}
                   onKeyDown={(e) => e.key === 'Enter' && !isCreating && handleCreateDatabase()}
                   disabled={isCreating}
-                  className="h-11"
                 />
               </div>
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter>
               <Button 
                 variant="outline" 
                 onClick={() => setIsCreateDialogOpen(false)}
@@ -252,18 +251,18 @@ const DatabaseListing: React.FC = () => {
 
         {/* Edit Database Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={(open) => !isEditing && setIsEditDialogOpen(open)}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{t('database.renameDatabase')}</DialogTitle>
               <DialogDescription>{t('database.uniqueNameHint')}</DialogDescription>
             </DialogHeader>
-            <div className="space-y-6 py-6">
+            <div className="py-4">
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="mb-4">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <Label htmlFor="editDatabaseName">{t('database.databaseName')}</Label>
                 <Input
                   id="editDatabaseName"
@@ -272,11 +271,10 @@ const DatabaseListing: React.FC = () => {
                   placeholder={t('database.enterDatabaseName')}
                   onKeyDown={(e) => e.key === 'Enter' && !isEditing && handleEditDatabase()}
                   disabled={isEditing}
-                  className="h-11"
                 />
               </div>
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter>
               <Button 
                 variant="outline" 
                 onClick={() => setIsEditDialogOpen(false)}
@@ -294,14 +292,14 @@ const DatabaseListing: React.FC = () => {
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => !isDeleting && setIsDeleteDialogOpen(open)}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{t('database.deleteDatabase')}</DialogTitle>
-              <DialogDescription className="pt-2">
+              <DialogDescription>
                 {t('database.deleteDatabaseConfirm', { name: selectedDatabase?.name })}
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter className="gap-2 sm:gap-0 pt-4">
+            <DialogFooter className="pt-4">
               <Button 
                 variant="outline" 
                 onClick={() => setIsDeleteDialogOpen(false)}

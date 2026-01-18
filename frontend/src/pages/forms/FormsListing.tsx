@@ -227,18 +227,18 @@ const FormsListing: React.FC = () => {
 
         {/* Create Form Dialog */}
         <Dialog open={isCreateDialogOpen} onOpenChange={(open) => !isCreating && setIsCreateDialogOpen(open)}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{t('forms.createNew')}</DialogTitle>
               <DialogDescription>{t('forms.uniqueNameHint')}</DialogDescription>
             </DialogHeader>
-            <div className="space-y-6 py-6">
+            <div className="py-4">
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="mb-4">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <Label htmlFor="formName">{t('forms.formName')}</Label>
                 <Input
                   id="formName"
@@ -247,11 +247,10 @@ const FormsListing: React.FC = () => {
                   placeholder={t('forms.enterFormName')}
                   onKeyDown={(e) => e.key === 'Enter' && !isCreating && handleCreateForm()}
                   disabled={isCreating}
-                  className="h-11"
                 />
               </div>
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter>
               <Button 
                 variant="outline" 
                 onClick={() => setIsCreateDialogOpen(false)}
@@ -269,18 +268,18 @@ const FormsListing: React.FC = () => {
 
         {/* Edit Form Name Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={(open) => !isEditing && setIsEditDialogOpen(open)}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{t('forms.renameForm')}</DialogTitle>
               <DialogDescription>{t('forms.uniqueNameHint')}</DialogDescription>
             </DialogHeader>
-            <div className="space-y-6 py-6">
+            <div className="py-4">
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="mb-4">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <Label htmlFor="editFormName">{t('forms.formName')}</Label>
                 <Input
                   id="editFormName"
@@ -289,11 +288,10 @@ const FormsListing: React.FC = () => {
                   placeholder={t('forms.enterFormName')}
                   onKeyDown={(e) => e.key === 'Enter' && !isEditing && handleEditFormName()}
                   disabled={isEditing}
-                  className="h-11"
                 />
               </div>
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter>
               <Button 
                 variant="outline" 
                 onClick={() => setIsEditDialogOpen(false)}
@@ -311,14 +309,14 @@ const FormsListing: React.FC = () => {
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => !isDeleting && setIsDeleteDialogOpen(open)}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{t('forms.deleteForm')}</DialogTitle>
-              <DialogDescription className="pt-2">
+              <DialogDescription>
                 {t('forms.deleteFormConfirm', { name: selectedForm?.name })}
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter className="gap-2 sm:gap-0 pt-4">
+            <DialogFooter className="pt-4">
               <Button 
                 variant="outline" 
                 onClick={() => setIsDeleteDialogOpen(false)}
