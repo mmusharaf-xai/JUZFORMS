@@ -549,7 +549,6 @@ const DatabaseDetails: React.FC = () => {
           open={isColumnDrawerOpen}
           onOpenChange={setIsColumnDrawerOpen}
           title={editingColumn ? t('database.editColumn') : t('database.addColumn')}
-          description={editingColumn ? t('database.editColumn') : t('database.addColumn')}
         >
           <DrawerContent>
             <div className="space-y-4">
@@ -598,7 +597,6 @@ const DatabaseDetails: React.FC = () => {
           open={isRowDrawerOpen}
           onOpenChange={setIsRowDrawerOpen}
           title={editingRow ? t('database.editRow') : t('database.addRow')}
-          description={editingRow ? t('database.editRow') : t('database.addRow')}
         >
           <DrawerContent>
             <div className="space-y-4">
@@ -640,7 +638,6 @@ const DatabaseDetails: React.FC = () => {
           open={isFilterDrawerOpen}
           onOpenChange={setIsFilterDrawerOpen}
           title={t('common.filters')}
-          description={t('common.filters')}
         >
           <DrawerContent>
             <div className="space-y-4">
