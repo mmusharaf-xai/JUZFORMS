@@ -219,7 +219,12 @@
       "ends_with": "Ends with"
     },
     "addFilter": "Add Filter",
-    "unique": "unique"
+    "applyFilters": "Apply Filters",
+    "unique": "unique",
+    "enterValue": "Enter value",
+    "enterColumnName": "Enter column name",
+    "selectColumn": "Select column",
+    "selectOperator": "Select operator"
   },
   "settings": {
     "title": "Settings",

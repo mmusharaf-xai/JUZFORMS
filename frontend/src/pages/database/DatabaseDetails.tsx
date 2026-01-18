@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Drawer, DrawerContent, DrawerFooter } from '@/components/ui/drawer';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import type { Database, DatabaseColumn, DatabaseRow, ColumnType } from '@/types';
@@ -32,6 +33,7 @@ const DatabaseDetails: React.FC = () => {
   const [rows, setRows] = useState<DatabaseRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notFound, setNotFound] = useState(false);
 
   const columnTypes: { value: ColumnType; label: string }[] = [
     { value: 'TEXT', label: t('database.columnTypes.TEXT') },
@@ -49,15 +51,19 @@ const DatabaseDetails: React.FC = () => {
     { value: 'RATINGS', label: t('database.columnTypes.RATINGS') },
   ];
 
-  // Column dialog
-  const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
+  // Column drawer
+  const [isColumnDrawerOpen, setIsColumnDrawerOpen] = useState(false);
   const [editingColumn, setEditingColumn] = useState<DatabaseColumn | null>(null);
   const [columnForm, setColumnForm] = useState({ name: '', type: 'TEXT' as ColumnType, is_unique: false });
 
-  // Row dialog
-  const [isRowDialogOpen, setIsRowDialogOpen] = useState(false);
+  // Row drawer
+  const [isRowDrawerOpen, setIsRowDrawerOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<DatabaseRow | null>(null);
   const [rowForm, setRowForm] = useState<Record<string, unknown>>({});
+
+  // Filter drawer
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [tempFilters, setTempFilters] = useState<FilterState[]>([]);
 
   // Delete dialogs
   const [isDeleteColumnDialogOpen, setIsDeleteColumnDialogOpen] = useState(false);
@@ -69,7 +75,6 @@ const DatabaseDetails: React.FC = () => {
   const [sortBy, setSortBy] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [filters, setFilters] = useState<FilterState[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -84,13 +89,20 @@ const DatabaseDetails: React.FC = () => {
         filters: filters.length > 0 ? JSON.stringify(filters) : undefined,
       });
       setRows(rowsResponse.data.rows);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch data:', err);
+      const apiError = err as { response?: { status?: number } };
+      if (apiError.response?.status === 404) {
+        setNotFound(true);
+        setTimeout(() => {
+          navigate('/databases');
+        }, 2000);
+      }
       setError(t('errors.failedToLoad'));
     } finally {
       setIsLoading(false);
     }
-  }, [id, sortBy, sortOrder, filters, t]);
+  }, [id, sortBy, sortOrder, filters, t, navigate]);
 
   useEffect(() => {
     fetchData();
@@ -109,14 +121,14 @@ const DatabaseDetails: React.FC = () => {
       } else {
         await databaseApi.addColumn(id, columnForm);
       }
-      setIsColumnDialogOpen(false);
+      setIsColumnDrawerOpen(false);
       setEditingColumn(null);
       setColumnForm({ name: '', type: 'TEXT', is_unique: false });
       setError('');
       fetchData();
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      setError(error.response?.data?.error || t('errors.failedToSave'));
+      const apiError = err as { response?: { data?: { error?: string } } };
+      setError(apiError.response?.data?.error || t('errors.failedToSave'));
     }
   };
 
@@ -143,14 +155,14 @@ const DatabaseDetails: React.FC = () => {
       } else {
         await databaseApi.addRow(id, rowForm);
       }
-      setIsRowDialogOpen(false);
+      setIsRowDrawerOpen(false);
       setEditingRow(null);
       setRowForm({});
       setError('');
       fetchData();
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      setError(error.response?.data?.error || t('errors.failedToSave'));
+      const apiError = err as { response?: { data?: { error?: string } } };
+      setError(apiError.response?.data?.error || t('errors.failedToSave'));
     }
   };
 
@@ -171,14 +183,14 @@ const DatabaseDetails: React.FC = () => {
     setEditingColumn(column);
     setColumnForm({ name: column.name, type: column.type, is_unique: column.is_unique });
     setError('');
-    setIsColumnDialogOpen(true);
+    setIsColumnDrawerOpen(true);
   };
 
   const openEditRow = (row: DatabaseRow) => {
     setEditingRow(row);
     setRowForm(row.data);
     setError('');
-    setIsRowDialogOpen(true);
+    setIsRowDrawerOpen(true);
   };
 
   const openAddRow = () => {
@@ -189,7 +201,7 @@ const DatabaseDetails: React.FC = () => {
     });
     setRowForm(initialForm);
     setError('');
-    setIsRowDialogOpen(true);
+    setIsRowDrawerOpen(true);
   };
 
   const handleSort = (columnName: string) => {
@@ -201,23 +213,55 @@ const DatabaseDetails: React.FC = () => {
     }
   };
 
-  const addFilter = () => {
+  // Filter handlers
+  const openFilterDrawer = () => {
+    setTempFilters([...filters]);
+    setIsFilterDrawerOpen(true);
+  };
+
+  const addTempFilter = () => {
     if (columns.length > 0) {
-      setFilters([...filters, { column: columns[0].name, operator: 'equals', value: '' }]);
+      setTempFilters([...tempFilters, { column: columns[0].name, operator: 'equals', value: '' }]);
     }
   };
 
-  const updateFilter = (index: number, updates: Partial<FilterState>) => {
-    const newFilters = [...filters];
+  const updateTempFilter = (index: number, updates: Partial<FilterState>) => {
+    const newFilters = [...tempFilters];
     newFilters[index] = { ...newFilters[index], ...updates };
-    setFilters(newFilters);
+    setTempFilters(newFilters);
   };
 
-  const removeFilter = (index: number) => {
-    setFilters(filters.filter((_, i) => i !== index));
+  const removeTempFilter = (index: number) => {
+    setTempFilters(tempFilters.filter((_, i) => i !== index));
+  };
+
+  const applyFilters = () => {
+    setFilters(tempFilters);
+    setIsFilterDrawerOpen(false);
+  };
+
+  const getPlaceholderForType = (type: string): string => {
+    switch (type) {
+      case 'EMAIL':
+        return 'example@email.com';
+      case 'URL':
+        return 'https://example.com';
+      case 'PHONE':
+        return '+1 (555) 123-4567';
+      case 'NUMBER':
+        return '0';
+      case 'JSON':
+        return '{"key": "value"}';
+      case 'LARGE_TEXT':
+        return t('database.enterValue');
+      default:
+        return t('database.enterValue');
+    }
   };
 
   const renderRowFieldInput = (column: DatabaseColumn, value: unknown, onChange: (value: unknown) => void) => {
+    const placeholder = getPlaceholderForType(column.type);
+    
     switch (column.type) {
       case 'LARGE_TEXT':
       case 'JSON':
@@ -225,7 +269,7 @@ const DatabaseDetails: React.FC = () => {
           <Textarea
             value={value as string || ''}
             onChange={(e) => onChange(e.target.value)}
-            placeholder={column.type === 'JSON' ? '{"key": "value"}' : ''}
+            placeholder={placeholder}
             className={column.type === 'JSON' ? 'font-mono' : ''}
           />
         );
@@ -235,6 +279,7 @@ const DatabaseDetails: React.FC = () => {
             type="number"
             value={value as string || ''}
             onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
           />
         );
       case 'DATE':
@@ -267,6 +312,7 @@ const DatabaseDetails: React.FC = () => {
             type="email"
             value={value as string || ''}
             onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
           />
         );
       case 'URL':
@@ -275,6 +321,16 @@ const DatabaseDetails: React.FC = () => {
             type="url"
             value={value as string || ''}
             onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+          />
+        );
+      case 'PHONE':
+        return (
+          <Input
+            type="tel"
+            value={value as string || ''}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
           />
         );
       default:
@@ -282,6 +338,7 @@ const DatabaseDetails: React.FC = () => {
           <Input
             value={value as string || ''}
             onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
           />
         );
     }
@@ -292,6 +349,19 @@ const DatabaseDetails: React.FC = () => {
       <Layout>
         <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
           <Spinner size="lg" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] gap-4">
+          <Alert variant="destructive" className="max-w-md">
+            <AlertDescription>{t('database.databaseNotFound')}</AlertDescription>
+          </Alert>
+          <p className="text-muted-foreground">{t('common.loading')}...</p>
         </div>
       </Layout>
     );
@@ -316,7 +386,7 @@ const DatabaseDetails: React.FC = () => {
                 setEditingColumn(null);
                 setColumnForm({ name: '', type: 'TEXT', is_unique: false });
                 setError('');
-                setIsColumnDialogOpen(true);
+                setIsColumnDrawerOpen(true);
               }}
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -329,65 +399,27 @@ const DatabaseDetails: React.FC = () => {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant={showFilters ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            {t('common.filters')} {filters.length > 0 && `(${filters.length})`}
-          </Button>
-          {filters.length > 0 && (
+        {/* Filters - Only show when there are columns */}
+        {columns.length > 0 && (
+          <div className="flex items-center gap-2">
             <Button
-              variant="ghost"
+              variant={filters.length > 0 ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFilters([])}
+              onClick={openFilterDrawer}
             >
-              {t('common.clearAll')}
+              <Filter className="h-4 w-4 mr-2" />
+              {t('common.filters')} {filters.length > 0 && `(${filters.length})`}
             </Button>
-          )}
-        </div>
-
-        {showFilters && (
-          <Card>
-            <CardContent className="pt-4">
-              <div className="space-y-3">
-                {filters.map((filter, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Select
-                      value={filter.column}
-                      onChange={(e) => updateFilter(index, { column: e.target.value })}
-                      options={columns.map((c) => ({ value: c.name, label: c.name }))}
-                    />
-                    <Select
-                      value={filter.operator}
-                      onChange={(e) => updateFilter(index, { operator: e.target.value })}
-                      options={[
-                        { value: 'equals', label: t('database.filterOperators.equals') },
-                        { value: 'contains', label: t('database.filterOperators.contains') },
-                        { value: 'starts_with', label: t('database.filterOperators.starts_with') },
-                        { value: 'ends_with', label: t('database.filterOperators.ends_with') },
-                      ]}
-                    />
-                    <Input
-                      value={filter.value}
-                      onChange={(e) => updateFilter(index, { value: e.target.value })}
-                      placeholder={t('common.filter')}
-                    />
-                    <Button variant="ghost" size="sm" onClick={() => removeFilter(index)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button variant="outline" size="sm" onClick={addFilter}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('database.addFilter')}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            {filters.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFilters([])}
+              >
+                {t('common.clearAll')}
+              </Button>
+            )}
+          </div>
         )}
 
         {/* Data Table */}
@@ -494,16 +526,15 @@ const DatabaseDetails: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Column Dialog */}
-        <Dialog open={isColumnDialogOpen} onOpenChange={setIsColumnDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingColumn ? t('database.editColumn') : t('database.addColumn')}</DialogTitle>
-              <DialogDescription>
-                {editingColumn ? t('database.editColumn') : t('database.addColumn')}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
+        {/* Column Drawer */}
+        <Drawer
+          open={isColumnDrawerOpen}
+          onOpenChange={setIsColumnDrawerOpen}
+          title={editingColumn ? t('database.editColumn') : t('database.addColumn')}
+          description={editingColumn ? t('database.editColumn') : t('database.addColumn')}
+        >
+          <DrawerContent>
+            <div className="space-y-4">
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
@@ -514,7 +545,7 @@ const DatabaseDetails: React.FC = () => {
                 <Input
                   value={columnForm.name}
                   onChange={(e) => setColumnForm({ ...columnForm, name: e.target.value })}
-                  placeholder={t('database.columnName')}
+                  placeholder={t('database.enterColumnName')}
                 />
               </div>
               <div className="space-y-2">
@@ -533,27 +564,26 @@ const DatabaseDetails: React.FC = () => {
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsColumnDialogOpen(false)}>
-                {t('common.cancel')}
-              </Button>
-              <Button onClick={handleAddColumn}>
-                {editingColumn ? t('common.update') : t('common.add')}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </DrawerContent>
+          <DrawerFooter>
+            <Button variant="outline" onClick={() => setIsColumnDrawerOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleAddColumn}>
+              {editingColumn ? t('common.update') : t('common.add')}
+            </Button>
+          </DrawerFooter>
+        </Drawer>
 
-        {/* Row Dialog */}
-        <Dialog open={isRowDialogOpen} onOpenChange={setIsRowDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingRow ? t('database.editRow') : t('database.addRow')}</DialogTitle>
-              <DialogDescription>
-                {editingRow ? t('database.editRow') : t('database.addRow')}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
+        {/* Row Drawer */}
+        <Drawer
+          open={isRowDrawerOpen}
+          onOpenChange={setIsRowDrawerOpen}
+          title={editingRow ? t('database.editRow') : t('database.addRow')}
+          description={editingRow ? t('database.editRow') : t('database.addRow')}
+        >
+          <DrawerContent>
+            <div className="space-y-4">
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
@@ -576,16 +606,73 @@ const DatabaseDetails: React.FC = () => {
                 </div>
               ))}
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsRowDialogOpen(false)}>
-                {t('common.cancel')}
+          </DrawerContent>
+          <DrawerFooter>
+            <Button variant="outline" onClick={() => setIsRowDrawerOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleAddRow}>
+              {editingRow ? t('common.update') : t('common.add')}
+            </Button>
+          </DrawerFooter>
+        </Drawer>
+
+        {/* Filter Drawer */}
+        <Drawer
+          open={isFilterDrawerOpen}
+          onOpenChange={setIsFilterDrawerOpen}
+          title={t('common.filters')}
+          description={t('common.filters')}
+        >
+          <DrawerContent>
+            <div className="space-y-4">
+              {tempFilters.map((filter, index) => (
+                <div key={index} className="space-y-2 p-3 border rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <Label>{t('database.selectColumn')}</Label>
+                    <Button variant="ghost" size="sm" onClick={() => removeTempFilter(index)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Select
+                    value={filter.column}
+                    onChange={(e) => updateTempFilter(index, { column: e.target.value })}
+                    options={columns.map((c) => ({ value: c.name, label: c.name }))}
+                  />
+                  <Label>{t('database.selectOperator')}</Label>
+                  <Select
+                    value={filter.operator}
+                    onChange={(e) => updateTempFilter(index, { operator: e.target.value })}
+                    options={[
+                      { value: 'equals', label: t('database.filterOperators.equals') },
+                      { value: 'contains', label: t('database.filterOperators.contains') },
+                      { value: 'starts_with', label: t('database.filterOperators.starts_with') },
+                      { value: 'ends_with', label: t('database.filterOperators.ends_with') },
+                    ]}
+                  />
+                  <Label>{t('database.enterValue')}</Label>
+                  <Input
+                    value={filter.value}
+                    onChange={(e) => updateTempFilter(index, { value: e.target.value })}
+                    placeholder={t('database.enterValue')}
+                  />
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={addTempFilter} className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                {t('database.addFilter')}
               </Button>
-              <Button onClick={handleAddRow}>
-                {editingRow ? t('common.update') : t('common.add')}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </div>
+          </DrawerContent>
+          <DrawerFooter>
+            <Button variant="outline" onClick={() => setIsFilterDrawerOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={applyFilters}>
+              {t('database.applyFilters')}
+            </Button>
+          </DrawerFooter>
+        </Drawer>
 
         {/* Delete Column Dialog */}
         <Dialog open={isDeleteColumnDialogOpen} onOpenChange={setIsDeleteColumnDialogOpen}>
