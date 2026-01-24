@@ -67,6 +67,10 @@ export const formsApi = {
   },
   restoreForm: (id: string) => api.post(`/forms/${id}/restore`),
   permanentDeleteForm: (id: string) => api.delete(`/forms/${id}/permanent`),
+  bulkRestoreForms: (data: { ids?: string[]; selectedAll?: boolean; search: string }) =>
+    api.post('/forms/archives/bulk-restore', data),
+  bulkDeleteForms: (data: { ids?: string[]; selectedAll?: boolean; search: string }) =>
+    api.post('/forms/archives/bulk-delete', data),
 };
 
 // Database API

@@ -11,6 +11,8 @@ import {
   getDeletedForms,
   restoreForm,
   permanentDeleteForm,
+  bulkRestoreForms,
+  bulkDeleteForms,
 } from '../controllers/formsController';
 import { authenticate } from '../middleware/auth';
 
@@ -32,5 +34,7 @@ router.get('/:id/submissions', authenticate, getFormSubmissions);
 router.get('/archives/deleted', authenticate, getDeletedForms);
 router.post('/:id/restore', authenticate, restoreForm);
 router.delete('/:id/permanent', authenticate, permanentDeleteForm);
+router.post('/archives/bulk-restore', authenticate, bulkRestoreForms);
+router.post('/archives/bulk-delete', authenticate, bulkDeleteForms);
 
 export default router;

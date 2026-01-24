@@ -476,3 +476,159 @@ export const permanentDeleteForm = async (
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const bulkRestoreForms = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const { ids, selectedAll, search } = req.body;
+
+  try {
+    let formsToRestore: { id: string }[];
+
+    if (selectedAll) {
+      // Get all forms matching the search criteria
+      const where: any = {
+        userId: req.user!.id,
+        deletedAt: { not: null },
+      };
+
+      if (search && search.trim()) {
+        where.name = {
+          contains: search.trim(),
+          mode: 'insensitive',
+        };
+      }
+
+      formsToRestore = await prisma.form.findMany({
+        where,
+        select: { id: true },
+      });
+    } else {
+      // Use specific IDs
+      formsToRestore = ids.map((id: string) => ({ id }));
+
+      // Verify all forms belong to user and are deleted
+      const existingForms = await prisma.form.findMany({
+        where: {
+          id: { in: ids },
+          userId: req.user!.id,
+          deletedAt: { not: null },
+        },
+        select: { id: true },
+      });
+
+      if (existingForms.length !== ids.length) {
+        res.status(404).json({ error: 'Some forms not found or not deleted' });
+        return;
+      }
+    }
+
+    // Check for name conflicts before restoring
+    if (selectedAll || formsToRestore.length > 0) {
+      const formIds = formsToRestore.map(f => f.id);
+      const conflictingForms = await prisma.form.findMany({
+        where: {
+          userId: req.user!.id,
+          deletedAt: null,
+          name: {
+            in: await prisma.form.findMany({
+              where: { id: { in: formIds } },
+              select: { name: true },
+            }).then(forms => forms.map(f => f.name)),
+          },
+        },
+        select: { name: true },
+      });
+
+      if (conflictingForms.length > 0) {
+        res.status(400).json({
+          error: 'Some forms cannot be restored due to name conflicts. Please rename them first.'
+        });
+        return;
+      }
+    }
+
+    // Restore the forms
+    await prisma.form.updateMany({
+      where: {
+        id: { in: formsToRestore.map(f => f.id) },
+        userId: req.user!.id,
+      },
+      data: { deletedAt: null },
+    });
+
+    res.json({
+      message: `${formsToRestore.length} form(s) restored successfully`,
+      count: formsToRestore.length
+    });
+  } catch (error) {
+    console.error('Bulk restore forms error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const bulkDeleteForms = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const { ids, selectedAll, search } = req.body;
+
+  try {
+    let formsToDelete: { id: string }[];
+
+    if (selectedAll) {
+      // Get all forms matching the search criteria
+      const where: any = {
+        userId: req.user!.id,
+        deletedAt: { not: null },
+      };
+
+      if (search && search.trim()) {
+        where.name = {
+          contains: search.trim(),
+          mode: 'insensitive',
+        };
+      }
+
+      formsToDelete = await prisma.form.findMany({
+        where,
+        select: { id: true },
+      });
+    } else {
+      // Use specific IDs
+      formsToDelete = ids.map((id: string) => ({ id }));
+
+      // Verify all forms belong to user and are deleted
+      const existingForms = await prisma.form.findMany({
+        where: {
+          id: { in: ids },
+          userId: req.user!.id,
+          deletedAt: { not: null },
+        },
+        select: { id: true },
+      });
+
+      if (existingForms.length !== ids.length) {
+        res.status(404).json({ error: 'Some forms not found or not deleted' });
+        return;
+      }
+    }
+
+    // Delete the forms permanently
+    await prisma.form.deleteMany({
+      where: {
+        id: { in: formsToDelete.map(f => f.id) },
+        userId: req.user!.id,
+      },
+    });
+
+    res.json({
+      message: `${formsToDelete.length} form(s) permanently deleted successfully`,
+      count: formsToDelete.length
+    });
+  } catch (error) {
+    console.error('Bulk delete forms error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

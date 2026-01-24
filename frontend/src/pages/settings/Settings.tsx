@@ -90,7 +90,7 @@ const Settings: React.FC = () => {
       setTotalForms(response.data.pagination.total);
       setCurrentPage(page);
 
-      // Reset selection state when search changes or loading new data
+      // Reset selection state when search changes
       if (search !== searchTerm) {
         setSelectedForms([]);
         setSelectedAll(false);
@@ -193,43 +193,23 @@ const Settings: React.FC = () => {
 
   const handleSelectForm = (formId: string, checked: boolean) => {
     if (checked) {
-      setSelectedForms(prev => {
-        const newSelected = [...prev, formId];
-        // Check if all items across all pages are now selected
-        if (newSelected.length === totalForms) {
-          setSelectedAll(true);
-        }
-        return newSelected;
-      });
+      setSelectedForms(prev => [...prev, formId]);
+      setSelectedAll(false); // If manually selecting, selectedAll becomes false
     } else {
-      setSelectedForms(prev => {
-        const newSelected = prev.filter(id => id !== formId);
-        // If we deselected anything, selectedAll becomes false
-        setSelectedAll(false);
-        return newSelected;
-      });
+      setSelectedForms(prev => prev.filter(id => id !== formId));
+      setSelectedAll(false); // If manually deselecting, selectedAll becomes false
     }
   };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      if (archivedForms.length === totalForms) {
-        // If all forms are visible on current page, select all globally
-        setSelectedAll(true);
-        setSelectedForms(archivedForms.map(form => form.id));
-      } else {
-        // Just select all visible forms on current page
-        setSelectedForms(prev => {
-          const currentPageIds = archivedForms.map(form => form.id);
-          const newSelected = [...new Set([...prev, ...currentPageIds])];
-          // Don't set selectedAll to true if there are more pages
-          return newSelected;
-        });
-      }
+      // When clicking "Select All" button, select ALL items globally
+      setSelectedAll(true);
+      setSelectedForms([]); // Clear individual selections when selecting all globally
     } else {
-      // Deselect all visible forms on current page
-      setSelectedForms(prev => prev.filter(id => !archivedForms.some(form => form.id === id)));
+      // Deselect all
       setSelectedAll(false);
+      setSelectedForms([]);
     }
   };
 
@@ -250,36 +230,16 @@ const Settings: React.FC = () => {
 
     setIsActionLoading(true);
     try {
-      let formIdsToProcess: string[];
-
-      if (selectedAll) {
-        // If all forms are selected, we need to get all form IDs matching the current search
-        // For now, fetch all pages to get all IDs (this could be optimized with a backend endpoint)
-        const allFormIds: string[] = [];
-        let page = 1;
-        let hasMorePages = true;
-
-        while (hasMorePages) {
-          const response = await formsApi.getDeletedForms({
-            search: searchTerm.trim(),
-            page,
-            limit: 100, // Fetch more per page to minimize requests
-          });
-
-          allFormIds.push(...response.data.forms.map((form: Form) => form.id));
-          hasMorePages = page < response.data.pagination.pages;
-          page++;
-        }
-
-        formIdsToProcess = allFormIds;
-      } else {
-        formIdsToProcess = selectedForms;
-      }
+      const payload = {
+        ids: selectedAll ? [] : selectedForms,
+        selectedAll,
+        search: searchTerm.trim(),
+      };
 
       if (actionOpenedType === 'RESTORE') {
-        await Promise.all(formIdsToProcess.map(id => formsApi.restoreForm(id)));
+        await formsApi.bulkRestoreForms(payload);
       } else if (actionOpenedType === 'DELETE') {
-        await Promise.all(formIdsToProcess.map(id => formsApi.permanentDeleteForm(id)));
+        await formsApi.bulkDeleteForms(payload);
       }
 
       // Reset selection state
@@ -288,9 +248,10 @@ const Settings: React.FC = () => {
       setActionOpenedType(null);
 
       // Reload archived forms with current search and page
-      await loadArchivedForms(currentPage, searchTerm);
+      await loadArchivedForms(1, searchTerm); // Go back to first page after bulk operation
     } catch (error) {
       console.error(`Failed to ${actionOpenedType.toLowerCase()} forms:`, error);
+      // Don't reset selection state on error so user can retry
     } finally {
       setIsActionLoading(false);
     }
@@ -590,7 +551,7 @@ const Settings: React.FC = () => {
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
-                          onClick={() => handleSelectAll(true)}
+                          onClick={() => handleSelectAll(!selectedAll)}
                           disabled={archivedForms.length === 0}
                         >
                           {selectedAll ? t('archives.allSelected') : t('archives.selectAll')}
