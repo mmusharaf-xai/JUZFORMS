@@ -356,8 +356,29 @@ export const getDeletedForms = async (
   res: Response
 ): Promise<void> => {
   try {
+    const { search, page = 1, limit = 10 } = req.query;
+    const pageNumber = parseInt(page as string, 10) || 1;
+    const pageSize = parseInt(limit as string, 10) || 10;
+    const skip = (pageNumber - 1) * pageSize;
+
+    // Build where clause
+    const where: any = {
+      userId: req.user!.id,
+      deletedAt: { not: null },
+    };
+
+    if (search && typeof search === 'string' && search.trim()) {
+      where.name = {
+        contains: search.trim(),
+        mode: 'insensitive',
+      };
+    }
+
+    // Get total count for pagination
+    const totalCount = await prisma.form.count({ where });
+
     const forms = await prisma.form.findMany({
-      where: { userId: req.user!.id, deletedAt: { not: null } },
+      where,
       orderBy: { deletedAt: 'desc' },
       select: {
         id: true,
@@ -366,6 +387,8 @@ export const getDeletedForms = async (
         updatedAt: true,
         deletedAt: true,
       },
+      skip,
+      take: pageSize,
     });
 
     res.json({
@@ -376,6 +399,12 @@ export const getDeletedForms = async (
         updated_at: form.updatedAt,
         deleted_at: form.deletedAt,
       })),
+      pagination: {
+        page: pageNumber,
+        limit: pageSize,
+        total: totalCount,
+        pages: Math.ceil(totalCount / pageSize),
+      },
     });
   } catch (error) {
     console.error('Get deleted forms error:', error);

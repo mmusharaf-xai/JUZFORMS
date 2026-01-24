@@ -58,7 +58,13 @@ export const formsApi = {
   submitForm: (id: string, data: Record<string, unknown>) =>
     api.post(`/forms/public/${id}/submit`, { data }),
   getFormSubmissions: (id: string) => api.get(`/forms/${id}/submissions`),
-  getDeletedForms: () => api.get('/forms/archives/deleted'),
+  getDeletedForms: (params?: { search?: string; page?: number; limit?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    return api.get(`/forms/archives/deleted?${queryParams.toString()}`);
+  },
   restoreForm: (id: string) => api.post(`/forms/${id}/restore`),
   permanentDeleteForm: (id: string) => api.delete(`/forms/${id}/permanent`),
 };

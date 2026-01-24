@@ -57,6 +57,13 @@ const Settings: React.FC = () => {
   const [selectedForms, setSelectedForms] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoadingArchives, setIsLoadingArchives] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalForms, setTotalForms] = useState(0);
+
+  // Archive action states (DRY principle)
+  const [actionOpenedType, setActionOpenedType] = useState<'DELETE' | 'RESTORE' | null>(null);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   React.useEffect(() => {
     if (activeTab === 'stats') {
@@ -66,15 +73,34 @@ const Settings: React.FC = () => {
       }).catch(() => {
         setStatsLoading(false);
       });
-    } else if (activeTab === 'archives' && archivesTab === 'forms') {
-      setIsLoadingArchives(true);
-      formsApi.getDeletedForms().then((res) => {
-        setArchivedForms(res.data.forms);
-        setIsLoadingArchives(false);
-      }).catch(() => {
-        setArchivedForms([]);
-        setIsLoadingArchives(false);
+    }
+  }, [activeTab, user?.id]);
+
+  const loadArchivedForms = async (page = 1, search = '') => {
+    setIsLoadingArchives(true);
+    try {
+      const response = await formsApi.getDeletedForms({
+        search: search.trim(),
+        page,
+        limit: 10,
       });
+      setArchivedForms(response.data.forms);
+      setTotalPages(response.data.pagination.pages);
+      setTotalForms(response.data.pagination.total);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Failed to load archived forms:', error);
+      setArchivedForms([]);
+      setTotalPages(1);
+      setTotalForms(0);
+    } finally {
+      setIsLoadingArchives(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (activeTab === 'archives' && archivesTab === 'forms') {
+      loadArchivedForms(1, searchTerm);
     }
   }, [activeTab, archivesTab, user?.id]);
 
@@ -172,28 +198,52 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleRestore = async () => {
-    try {
-      await Promise.all(selectedForms.map(id => formsApi.restoreForm(id)));
-      // Reload archived forms
-      const res = await formsApi.getDeletedForms();
-      setArchivedForms(res.data.forms);
-      setSelectedForms([]);
-    } catch (error) {
-      console.error('Failed to restore forms:', error);
+  const handleRestore = () => {
+    if (selectedForms.length > 0) {
+      setActionOpenedType('RESTORE');
     }
   };
 
-  const handleDelete = async () => {
-    try {
-      await Promise.all(selectedForms.map(id => formsApi.permanentDeleteForm(id)));
-      // Reload archived forms
-      const res = await formsApi.getDeletedForms();
-      setArchivedForms(res.data.forms);
-      setSelectedForms([]);
-    } catch (error) {
-      console.error('Failed to delete forms:', error);
+  const handleDelete = () => {
+    if (selectedForms.length > 0) {
+      setActionOpenedType('DELETE');
     }
+  };
+
+  const confirmAction = async () => {
+    if (!actionOpenedType) return;
+
+    setIsActionLoading(true);
+    try {
+      if (actionOpenedType === 'RESTORE') {
+        await Promise.all(selectedForms.map(id => formsApi.restoreForm(id)));
+      } else if (actionOpenedType === 'DELETE') {
+        await Promise.all(selectedForms.map(id => formsApi.permanentDeleteForm(id)));
+      }
+      // Reload archived forms with current search and page
+      await loadArchivedForms(currentPage, searchTerm);
+      setSelectedForms([]);
+      setActionOpenedType(null);
+    } catch (error) {
+      console.error(`Failed to ${actionOpenedType.toLowerCase()} forms:`, error);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  // Debounced search
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (activeTab === 'archives' && archivesTab === 'forms') {
+        loadArchivedForms(1, searchTerm);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handlePageChange = (page: number) => {
+    loadArchivedForms(page, searchTerm);
   };
 
   const statCards = [
@@ -484,16 +534,18 @@ const Settings: React.FC = () => {
                         </Button>
                         <Button
                           onClick={handleRestore}
-                          disabled={selectedForms.length === 0}
+                          disabled={selectedForms.length === 0 || isActionLoading}
                         >
-                          {t('archives.restore')}
+                          {isActionLoading && actionOpenedType === 'RESTORE' && <Spinner className="mr-2" size="sm" />}
+                          {isActionLoading && actionOpenedType === 'RESTORE' ? t('common.loading') : t('archives.restore')}
                         </Button>
                         <Button
                           variant="destructive"
                           onClick={handleDelete}
-                          disabled={selectedForms.length === 0}
+                          disabled={selectedForms.length === 0 || isActionLoading}
                         >
-                          {t('archives.delete')}
+                          {isActionLoading && actionOpenedType === 'DELETE' && <Spinner className="mr-2" size="sm" />}
+                          {isActionLoading && actionOpenedType === 'DELETE' ? t('common.loading') : t('archives.delete')}
                         </Button>
                       </div>
                     </div>
@@ -502,41 +554,99 @@ const Settings: React.FC = () => {
                       <div className="flex justify-center py-8">
                         <Spinner size="lg" />
                       </div>
-                    ) : filteredForms.length === 0 ? (
+                    ) : archivedForms.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         {searchTerm ? t('archives.noFormsMatch') : t('archives.noDeletedForms')}
                       </div>
                     ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-12">
-                              <Checkbox
-                                checked={selectedForms.length === filteredForms.length && filteredForms.length > 0}
-                                onCheckedChange={handleSelectAll}
-                              />
-                            </TableHead>
-                            <TableHead>{t('common.name')}</TableHead>
-                            <TableHead>{t('common.createdAt')}</TableHead>
-                            <TableHead>{t('common.updatedAt')}</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredForms.map((form) => (
-                            <TableRow key={form.id}>
-                              <TableCell>
+                      <>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-12">
                                 <Checkbox
-                                  checked={selectedForms.includes(form.id)}
-                                  onCheckedChange={(checked) => handleSelectForm(form.id, checked as boolean)}
+                                  checked={selectedForms.length === archivedForms.length && archivedForms.length > 0}
+                                  onCheckedChange={handleSelectAll}
                                 />
-                              </TableCell>
-                              <TableCell className="font-medium">{form.name}</TableCell>
-                              <TableCell>{new Date(form.created_at).toLocaleDateString()}</TableCell>
-                              <TableCell>{new Date(form.updated_at).toLocaleDateString()}</TableCell>
+                              </TableHead>
+                              <TableHead>{t('common.name')}</TableHead>
+                              <TableHead>{t('common.createdAt')}</TableHead>
+                              <TableHead>{t('common.updatedAt')}</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {archivedForms.map((form) => (
+                              <TableRow key={form.id}>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={selectedForms.includes(form.id)}
+                                    onCheckedChange={(checked) => handleSelectForm(form.id, checked as boolean)}
+                                  />
+                                </TableCell>
+                                <TableCell className="font-medium">{form.name}</TableCell>
+                                <TableCell>{new Date(form.created_at).toLocaleDateString()}</TableCell>
+                                <TableCell>{new Date(form.updated_at).toLocaleDateString()}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                          <div className="flex items-center justify-between mt-4">
+                            <div className="text-sm text-muted-foreground">
+                              {t('common.showing')} {(currentPage - 1) * 10 + 1}-{Math.min(currentPage * 10, totalForms)} {t('common.of')} {totalForms} {t('archives.forms')}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1 || isLoadingArchives}
+                              >
+                                {t('common.previous')}
+                              </Button>
+
+                              {/* Page numbers */}
+                              <div className="flex items-center space-x-1">
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                  let pageNum;
+                                  if (totalPages <= 5) {
+                                    pageNum = i + 1;
+                                  } else if (currentPage <= 3) {
+                                    pageNum = i + 1;
+                                  } else if (currentPage >= totalPages - 2) {
+                                    pageNum = totalPages - 4 + i;
+                                  } else {
+                                    pageNum = currentPage - 2 + i;
+                                  }
+
+                                  return (
+                                    <Button
+                                      key={pageNum}
+                                      variant={currentPage === pageNum ? "default" : "outline"}
+                                      size="sm"
+                                      onClick={() => handlePageChange(pageNum)}
+                                      disabled={isLoadingArchives}
+                                    >
+                                      {pageNum}
+                                    </Button>
+                                  );
+                                })}
+                              </div>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages || isLoadingArchives}
+                              >
+                                {t('common.next')}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -596,6 +706,45 @@ const Settings: React.FC = () => {
               >
                 {isDeleting && <Spinner className="mr-2" size="sm" />}
                 {isDeleting ? t('settings.deleting') : t('settings.deleteAccount')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Archive Action Confirmation Dialog */}
+        <Dialog open={actionOpenedType !== null} onOpenChange={(open) => !isActionLoading && !open && setActionOpenedType(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {actionOpenedType === 'RESTORE' ? t('archives.restoreForms') : t('archives.deleteForms')}
+              </DialogTitle>
+              <DialogDescription className="pt-2">
+                {actionOpenedType === 'RESTORE'
+                  ? t('archives.restoreFormsConfirm', { count: selectedForms.length })
+                  : t('archives.deleteFormsConfirm', { count: selectedForms.length })
+                }
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setActionOpenedType(null)}
+                disabled={isActionLoading}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                variant={actionOpenedType === 'DELETE' ? 'destructive' : 'default'}
+                onClick={confirmAction}
+                disabled={isActionLoading}
+              >
+                {isActionLoading && <Spinner className="mr-2" size="sm" />}
+                {isActionLoading
+                  ? t('common.loading')
+                  : actionOpenedType === 'RESTORE'
+                    ? t('archives.restore')
+                    : t('archives.delete')
+                }
               </Button>
             </DialogFooter>
           </DialogContent>

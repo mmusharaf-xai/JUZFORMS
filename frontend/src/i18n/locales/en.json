@@ -31,7 +31,11 @@
     "error": "Error",
     "success": "Success",
     "warning": "Warning",
-    "info": "Info"
+    "info": "Info",
+    "showing": "Showing",
+    "of": "of",
+    "previous": "Previous",
+    "next": "Next"
   },
   "auth": {
     "signIn": "Sign In",
@@ -278,7 +282,11 @@
     "delete": "Delete",
     "noFormsMatch": "No forms match your search",
     "noDeletedForms": "No deleted forms",
-    "noDeletedDatabases": "No deleted databases"
+    "noDeletedDatabases": "No deleted databases",
+    "restoreForms": "Restore Forms",
+    "restoreFormsConfirm": "Are you sure you want to restore {{count}} form(s)? This will make them available again.",
+    "deleteForms": "Delete Forms Permanently",
+    "deleteFormsConfirm": "Are you sure you want to permanently delete {{count}} form(s)? This action cannot be undone."
   },
   "validation": {
     "required": "{{field}} is required",

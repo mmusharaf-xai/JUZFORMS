@@ -31,7 +31,11 @@
     "error": "Error",
     "success": "Éxito",
     "warning": "Advertencia",
-    "info": "Información"
+    "info": "Información",
+    "showing": "Mostrando",
+    "of": "de",
+    "previous": "Anterior",
+    "next": "Siguiente"
   },
   "auth": {
     "signIn": "Iniciar sesión",
@@ -280,7 +284,11 @@
     "delete": "Eliminar",
     "noFormsMatch": "Ningún formulario coincide con tu búsqueda",
     "noDeletedForms": "No hay formularios eliminados",
-    "noDeletedDatabases": "No hay bases de datos eliminadas"
+    "noDeletedDatabases": "No hay bases de datos eliminadas",
+    "restoreForms": "Restaurar Formularios",
+    "restoreFormsConfirm": "¿Estás seguro de que quieres restaurar {{count}} formulario(s)? Esto los hará disponibles nuevamente.",
+    "deleteForms": "Eliminar Formularios Permanentemente",
+    "deleteFormsConfirm": "¿Estás seguro de que quieres eliminar permanentemente {{count}} formulario(s)? Esta acción no se puede deshacer."
   },
   "validation": {
     "required": "{{field}} es requerido",
