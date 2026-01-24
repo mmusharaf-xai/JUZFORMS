@@ -9,7 +9,7 @@ export const getForms = async (
 ): Promise<void> => {
   try {
     const forms = await prisma.form.findMany({
-      where: { userId: req.user!.id },
+      where: { userId: req.user!.id, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -43,7 +43,7 @@ export const getForm = async (
 
   try {
     const form = await prisma.form.findFirst({
-      where: { id, userId: req.user!.id },
+      where: { id, userId: req.user!.id, deletedAt: null },
     });
 
     if (!form) {
@@ -179,7 +179,7 @@ export const updateForm = async (
   try {
     // Check if form exists and belongs to user
     const existingForm = await prisma.form.findFirst({
-      where: { id, userId: req.user!.id },
+      where: { id, userId: req.user!.id, deletedAt: null },
     });
 
     if (!existingForm) {
@@ -244,7 +244,7 @@ export const deleteForm = async (
 
   try {
     const form = await prisma.form.findFirst({
-      where: { id, userId: req.user!.id },
+      where: { id, userId: req.user!.id, deletedAt: null },
     });
 
     if (!form) {
@@ -252,8 +252,9 @@ export const deleteForm = async (
       return;
     }
 
-    await prisma.form.delete({
+    await prisma.form.update({
       where: { id },
+      data: { deletedAt: new Date() },
     });
 
     res.json({ message: 'Form deleted successfully' });
@@ -273,7 +274,7 @@ export const submitForm = async (
   try {
     // Check if form exists and is published
     const form = await prisma.form.findFirst({
-      where: { id, isPublished: true },
+      where: { id, isPublished: true, deletedAt: null },
     });
 
     if (!form) {
@@ -313,7 +314,7 @@ export const getFormSubmissions = async (
   try {
     // Check if form belongs to user
     const form = await prisma.form.findFirst({
-      where: { id, userId: req.user!.id },
+      where: { id, userId: req.user!.id, deletedAt: null },
     });
 
     if (!form) {
@@ -336,6 +337,103 @@ export const getFormSubmissions = async (
     });
   } catch (error) {
     console.error('Get form submissions error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getDeletedForms = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const forms = await prisma.form.findMany({
+      where: { userId: req.user!.id, deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+      },
+    });
+
+    res.json({
+      forms: forms.map((form) => ({
+        id: form.id,
+        name: form.name,
+        created_at: form.createdAt,
+        updated_at: form.updatedAt,
+        deleted_at: form.deletedAt,
+      })),
+    });
+  } catch (error) {
+    console.error('Get deleted forms error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const restoreForm = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const id = req.params.id as string;
+
+  try {
+    const form = await prisma.form.findFirst({
+      where: { id, userId: req.user!.id, deletedAt: { not: null } },
+    });
+
+    if (!form) {
+      res.status(404).json({ error: 'Deleted form not found' });
+      return;
+    }
+
+    // Check if name conflicts with existing non-deleted form
+    const existingForm = await prisma.form.findFirst({
+      where: { name: form.name, userId: req.user!.id, deletedAt: null },
+    });
+
+    if (existingForm) {
+      res.status(400).json({ error: 'A form with this name already exists. Please rename the form before restoring.' });
+      return;
+    }
+
+    await prisma.form.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+
+    res.json({ message: 'Form restored successfully' });
+  } catch (error) {
+    console.error('Restore form error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const permanentDeleteForm = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const id = req.params.id as string;
+
+  try {
+    const form = await prisma.form.findFirst({
+      where: { id, userId: req.user!.id, deletedAt: { not: null } },
+    });
+
+    if (!form) {
+      res.status(404).json({ error: 'Deleted form not found' });
+      return;
+    }
+
+    await prisma.form.delete({
+      where: { id },
+    });
+
+    res.json({ message: 'Form permanently deleted successfully' });
+  } catch (error) {
+    console.error('Permanent delete form error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

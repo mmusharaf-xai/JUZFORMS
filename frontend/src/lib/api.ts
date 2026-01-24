@@ -58,6 +58,9 @@ export const formsApi = {
   submitForm: (id: string, data: Record<string, unknown>) =>
     api.post(`/forms/public/${id}/submit`, { data }),
   getFormSubmissions: (id: string) => api.get(`/forms/${id}/submissions`),
+  getDeletedForms: () => api.get('/forms/archives/deleted'),
+  restoreForm: (id: string) => api.post(`/forms/${id}/restore`),
+  permanentDeleteForm: (id: string) => api.delete(`/forms/${id}/permanent`),
 };
 
 // Database API

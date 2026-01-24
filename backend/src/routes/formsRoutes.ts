@@ -8,6 +8,9 @@ import {
   deleteForm,
   submitForm,
   getFormSubmissions,
+  getDeletedForms,
+  restoreForm,
+  permanentDeleteForm,
 } from '../controllers/formsController';
 import { authenticate } from '../middleware/auth';
 
@@ -24,5 +27,10 @@ router.post('/', authenticate, createForm);
 router.put('/:id', authenticate, updateForm);
 router.delete('/:id', authenticate, deleteForm);
 router.get('/:id/submissions', authenticate, getFormSubmissions);
+
+// Archive routes
+router.get('/archives/deleted', authenticate, getDeletedForms);
+router.post('/:id/restore', authenticate, restoreForm);
+router.delete('/:id/permanent', authenticate, permanentDeleteForm);
 
 export default router;

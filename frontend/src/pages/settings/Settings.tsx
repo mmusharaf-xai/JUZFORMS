@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
-import { authApi, statsApi } from '@/lib/api';
+import { authApi, statsApi, formsApi } from '@/lib/api';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,14 +12,17 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
-import type { Stats } from '@/types';
-import { FileText, Send, Database, User, Lock, BarChart3 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import type { Stats, Form } from '@/types';
+import { FileText, Send, Database, User, Lock, BarChart3, Archive } from 'lucide-react';
 
 const Settings: React.FC = () => {
   const { t } = useTranslation();
   const { user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
+  const [archivesTab, setArchivesTab] = useState('forms');
 
   // Stats
   const [stats, setStats] = React.useState<Stats | null>(null);
@@ -49,6 +52,12 @@ const Settings: React.FC = () => {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Archives
+  const [archivedForms, setArchivedForms] = useState<Form[]>([]);
+  const [selectedForms, setSelectedForms] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoadingArchives, setIsLoadingArchives] = useState(false);
+
   React.useEffect(() => {
     if (activeTab === 'stats') {
       statsApi.getStats().then((res) => {
@@ -57,8 +66,17 @@ const Settings: React.FC = () => {
       }).catch(() => {
         setStatsLoading(false);
       });
+    } else if (activeTab === 'archives' && archivesTab === 'forms') {
+      setIsLoadingArchives(true);
+      formsApi.getDeletedForms().then((res) => {
+        setArchivedForms(res.data.forms);
+        setIsLoadingArchives(false);
+      }).catch(() => {
+        setArchivedForms([]);
+        setIsLoadingArchives(false);
+      });
     }
-  }, [activeTab]);
+  }, [activeTab, archivesTab, user?.id]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,6 +151,51 @@ const Settings: React.FC = () => {
     }
   };
 
+  // Archives handlers
+  const filteredForms = archivedForms.filter(form =>
+    form.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSelectForm = (formId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedForms(prev => [...prev, formId]);
+    } else {
+      setSelectedForms(prev => prev.filter(id => id !== formId));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedForms(filteredForms.map(form => form.id));
+    } else {
+      setSelectedForms([]);
+    }
+  };
+
+  const handleRestore = async () => {
+    try {
+      await Promise.all(selectedForms.map(id => formsApi.restoreForm(id)));
+      // Reload archived forms
+      const res = await formsApi.getDeletedForms();
+      setArchivedForms(res.data.forms);
+      setSelectedForms([]);
+    } catch (error) {
+      console.error('Failed to restore forms:', error);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await Promise.all(selectedForms.map(id => formsApi.permanentDeleteForm(id)));
+      // Reload archived forms
+      const res = await formsApi.getDeletedForms();
+      setArchivedForms(res.data.forms);
+      setSelectedForms([]);
+    } catch (error) {
+      console.error('Failed to delete forms:', error);
+    }
+  };
+
   const statCards = [
     {
       title: t('stats.formsCreated'),
@@ -166,7 +229,7 @@ const Settings: React.FC = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">{t('settings.profile')}</span>
@@ -178,6 +241,10 @@ const Settings: React.FC = () => {
             <TabsTrigger value="stats" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">{t('settings.stats')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="archives" className="flex items-center gap-2">
+              <Archive className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('settings.archives')}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -377,6 +444,118 @@ const Settings: React.FC = () => {
                 })
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="archives" className="mt-6">
+            <Tabs value={archivesTab} onValueChange={setArchivesTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="forms">{t('archives.forms')}</TabsTrigger>
+                <TabsTrigger value="databases">{t('archives.databases')}</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="forms" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('archives.deletedForms')}</CardTitle>
+                    <CardDescription>{t('archives.deletedFormsDesc')}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                      <Input
+                        placeholder={t('archives.searchForms')}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="max-w-sm"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => handleSelectAll(true)}
+                          disabled={filteredForms.length === 0}
+                        >
+                          {t('archives.selectAll')}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => handleSelectAll(false)}
+                          disabled={selectedForms.length === 0}
+                        >
+                          {t('archives.deselectAll')}
+                        </Button>
+                        <Button
+                          onClick={handleRestore}
+                          disabled={selectedForms.length === 0}
+                        >
+                          {t('archives.restore')}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={handleDelete}
+                          disabled={selectedForms.length === 0}
+                        >
+                          {t('archives.delete')}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {isLoadingArchives ? (
+                      <div className="flex justify-center py-8">
+                        <Spinner size="lg" />
+                      </div>
+                    ) : filteredForms.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        {searchTerm ? t('archives.noFormsMatch') : t('archives.noDeletedForms')}
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-12">
+                              <Checkbox
+                                checked={selectedForms.length === filteredForms.length && filteredForms.length > 0}
+                                onCheckedChange={handleSelectAll}
+                              />
+                            </TableHead>
+                            <TableHead>{t('common.name')}</TableHead>
+                            <TableHead>{t('common.createdAt')}</TableHead>
+                            <TableHead>{t('common.updatedAt')}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredForms.map((form) => (
+                            <TableRow key={form.id}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedForms.includes(form.id)}
+                                  onCheckedChange={(checked) => handleSelectForm(form.id, checked as boolean)}
+                                />
+                              </TableCell>
+                              <TableCell className="font-medium">{form.name}</TableCell>
+                              <TableCell>{new Date(form.created_at).toLocaleDateString()}</TableCell>
+                              <TableCell>{new Date(form.updated_at).toLocaleDateString()}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="databases" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t('archives.deletedDatabases')}</CardTitle>
+                    <CardDescription>{t('archives.deletedDatabasesDesc')}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8 text-muted-foreground">
+                      {t('archives.noDeletedDatabases')}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
 
