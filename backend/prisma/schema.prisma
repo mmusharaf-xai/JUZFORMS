@@ -3,36 +3,36 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id         String   @id @default(cuid())
-  firstName  String
-  lastName   String
+  id         String   @id @default(uuid())
+  firstName  String   @map("first_name")
+  lastName   String   @map("last_name")
   email      String   @unique
   password   String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   forms     Form[]
   databases Database[]
 
-
+  @@map("users")
 }
 
 model Form {
   id           String   @id @default(uuid())
-  userId       String
+  userId       String   @map("user_id")
   name         String
   fields       Json     @default("[]")
-  headerConfig Json     @default("{}")
-  footerConfig Json     @default("{}")
-  isPublished  Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  deletedAt    DateTime?
+  headerConfig Json     @default("{}") @map("header_config")
+  footerConfig Json     @default("{}") @map("footer_config")
+  isPublished  Boolean  @default(false) @map("is_published")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
 
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   submissions FormSubmission[]
@@ -40,27 +40,27 @@ model Form {
   @@unique([userId, name])
   @@index([userId])
   @@index([deletedAt])
-
+  @@map("forms")
 }
 
 model FormSubmission {
   id        String   @id @default(uuid())
-  formId    String
+  formId    String   @map("form_id")
   data      Json
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
 
   @@index([formId])
-
+  @@map("form_submissions")
 }
 
 model Database {
   id        String   @id @default(uuid())
-  userId    String
+  userId    String   @map("user_id")
   name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   columns DatabaseColumn[]
@@ -68,34 +68,34 @@ model Database {
 
   @@unique([userId, name])
   @@index([userId])
-
+  @@map("databases")
 }
 
 model DatabaseColumn {
-  id         String   @id @default(cuid())
-  databaseId String
+  id         String   @id @default(uuid())
+  databaseId String   @map("database_id")
   name       String
   type       String
-  isUnique   Boolean  @default(false)
+  isUnique   Boolean  @default(false) @map("is_unique")
   order      Int      @default(0)
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @map("created_at")
 
   database Database @relation(fields: [databaseId], references: [id], onDelete: Cascade)
 
   @@unique([databaseId, name])
   @@index([databaseId])
-
+  @@map("database_columns")
 }
 
 model DatabaseRow {
-  id         String   @id @default(cuid())
-  databaseId String
+  id         String   @id @default(uuid())
+  databaseId String   @map("database_id")
   data       Json
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   database Database @relation(fields: [databaseId], references: [id], onDelete: Cascade)
 
   @@index([databaseId])
-
+  @@map("database_rows")
 }
