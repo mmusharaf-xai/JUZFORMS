@@ -280,6 +280,7 @@
     "searchForms": "Buscar formularios...",
     "selectAll": "Seleccionar todo",
     "deselectAll": "Deseleccionar todo",
+    "allSelected": "Todo seleccionado",
     "restore": "Restaurar",
     "delete": "Eliminar",
     "noFormsMatch": "Ningún formulario coincide con tu búsqueda",

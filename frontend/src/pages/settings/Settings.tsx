@@ -55,6 +55,7 @@ const Settings: React.FC = () => {
   // Archives
   const [archivedForms, setArchivedForms] = useState<Form[]>([]);
   const [selectedForms, setSelectedForms] = useState<string[]>([]);
+  const [selectedAll, setSelectedAll] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoadingArchives, setIsLoadingArchives] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -88,11 +89,19 @@ const Settings: React.FC = () => {
       setTotalPages(response.data.pagination.pages);
       setTotalForms(response.data.pagination.total);
       setCurrentPage(page);
+
+      // Reset selection state when search changes or loading new data
+      if (search !== searchTerm) {
+        setSelectedForms([]);
+        setSelectedAll(false);
+      }
     } catch (error) {
       console.error('Failed to load archived forms:', error);
       setArchivedForms([]);
       setTotalPages(1);
       setTotalForms(0);
+      setSelectedForms([]);
+      setSelectedAll(false);
     } finally {
       setIsLoadingArchives(false);
     }
@@ -184,17 +193,43 @@ const Settings: React.FC = () => {
 
   const handleSelectForm = (formId: string, checked: boolean) => {
     if (checked) {
-      setSelectedForms(prev => [...prev, formId]);
+      setSelectedForms(prev => {
+        const newSelected = [...prev, formId];
+        // Check if all items across all pages are now selected
+        if (newSelected.length === totalForms) {
+          setSelectedAll(true);
+        }
+        return newSelected;
+      });
     } else {
-      setSelectedForms(prev => prev.filter(id => id !== formId));
+      setSelectedForms(prev => {
+        const newSelected = prev.filter(id => id !== formId);
+        // If we deselected anything, selectedAll becomes false
+        setSelectedAll(false);
+        return newSelected;
+      });
     }
   };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedForms(filteredForms.map(form => form.id));
+      if (archivedForms.length === totalForms) {
+        // If all forms are visible on current page, select all globally
+        setSelectedAll(true);
+        setSelectedForms(archivedForms.map(form => form.id));
+      } else {
+        // Just select all visible forms on current page
+        setSelectedForms(prev => {
+          const currentPageIds = archivedForms.map(form => form.id);
+          const newSelected = [...new Set([...prev, ...currentPageIds])];
+          // Don't set selectedAll to true if there are more pages
+          return newSelected;
+        });
+      }
     } else {
-      setSelectedForms([]);
+      // Deselect all visible forms on current page
+      setSelectedForms(prev => prev.filter(id => !archivedForms.some(form => form.id === id)));
+      setSelectedAll(false);
     }
   };
 
@@ -215,15 +250,45 @@ const Settings: React.FC = () => {
 
     setIsActionLoading(true);
     try {
-      if (actionOpenedType === 'RESTORE') {
-        await Promise.all(selectedForms.map(id => formsApi.restoreForm(id)));
-      } else if (actionOpenedType === 'DELETE') {
-        await Promise.all(selectedForms.map(id => formsApi.permanentDeleteForm(id)));
+      let formIdsToProcess: string[];
+
+      if (selectedAll) {
+        // If all forms are selected, we need to get all form IDs matching the current search
+        // For now, fetch all pages to get all IDs (this could be optimized with a backend endpoint)
+        const allFormIds: string[] = [];
+        let page = 1;
+        let hasMorePages = true;
+
+        while (hasMorePages) {
+          const response = await formsApi.getDeletedForms({
+            search: searchTerm.trim(),
+            page,
+            limit: 100, // Fetch more per page to minimize requests
+          });
+
+          allFormIds.push(...response.data.forms.map((form: Form) => form.id));
+          hasMorePages = page < response.data.pagination.pages;
+          page++;
+        }
+
+        formIdsToProcess = allFormIds;
+      } else {
+        formIdsToProcess = selectedForms;
       }
+
+      if (actionOpenedType === 'RESTORE') {
+        await Promise.all(formIdsToProcess.map(id => formsApi.restoreForm(id)));
+      } else if (actionOpenedType === 'DELETE') {
+        await Promise.all(formIdsToProcess.map(id => formsApi.permanentDeleteForm(id)));
+      }
+
+      // Reset selection state
+      setSelectedForms([]);
+      setSelectedAll(false);
+      setActionOpenedType(null);
+
       // Reload archived forms with current search and page
       await loadArchivedForms(currentPage, searchTerm);
-      setSelectedForms([]);
-      setActionOpenedType(null);
     } catch (error) {
       console.error(`Failed to ${actionOpenedType.toLowerCase()} forms:`, error);
     } finally {
@@ -244,6 +309,11 @@ const Settings: React.FC = () => {
 
   const handlePageChange = (page: number) => {
     loadArchivedForms(page, searchTerm);
+  };
+
+  // Get the effective selected count (either selected forms or all forms if selectedAll)
+  const getSelectedCount = () => {
+    return selectedAll ? totalForms : selectedForms.length;
   };
 
   const statCards = [
@@ -521,20 +591,20 @@ const Settings: React.FC = () => {
                         <Button
                           variant="outline"
                           onClick={() => handleSelectAll(true)}
-                          disabled={filteredForms.length === 0}
+                          disabled={archivedForms.length === 0}
                         >
-                          {t('archives.selectAll')}
+                          {selectedAll ? t('archives.allSelected') : t('archives.selectAll')}
                         </Button>
                         <Button
                           variant="outline"
                           onClick={() => handleSelectAll(false)}
-                          disabled={selectedForms.length === 0}
+                          disabled={selectedForms.length === 0 && !selectedAll}
                         >
                           {t('archives.deselectAll')}
                         </Button>
                         <Button
                           onClick={handleRestore}
-                          disabled={selectedForms.length === 0 || isActionLoading}
+                          disabled={getSelectedCount() === 0 || isActionLoading}
                         >
                           {isActionLoading && actionOpenedType === 'RESTORE' && <Spinner className="mr-2" size="sm" />}
                           {isActionLoading && actionOpenedType === 'RESTORE' ? t('common.loading') : t('archives.restore')}
@@ -542,7 +612,7 @@ const Settings: React.FC = () => {
                         <Button
                           variant="destructive"
                           onClick={handleDelete}
-                          disabled={selectedForms.length === 0 || isActionLoading}
+                          disabled={getSelectedCount() === 0 || isActionLoading}
                         >
                           {isActionLoading && actionOpenedType === 'DELETE' && <Spinner className="mr-2" size="sm" />}
                           {isActionLoading && actionOpenedType === 'DELETE' ? t('common.loading') : t('archives.delete')}
@@ -565,7 +635,7 @@ const Settings: React.FC = () => {
                             <TableRow>
                               <TableHead className="w-12">
                                 <Checkbox
-                                  checked={selectedForms.length === archivedForms.length && archivedForms.length > 0}
+                                  checked={selectedAll || (archivedForms.length > 0 && archivedForms.every(form => selectedForms.includes(form.id)))}
                                   onCheckedChange={handleSelectAll}
                                 />
                               </TableHead>
@@ -579,7 +649,7 @@ const Settings: React.FC = () => {
                               <TableRow key={form.id}>
                                 <TableCell>
                                   <Checkbox
-                                    checked={selectedForms.includes(form.id)}
+                                    checked={selectedAll || selectedForms.includes(form.id)}
                                     onCheckedChange={(checked) => handleSelectForm(form.id, checked as boolean)}
                                   />
                                 </TableCell>
@@ -720,8 +790,8 @@ const Settings: React.FC = () => {
               </DialogTitle>
               <DialogDescription className="pt-2">
                 {actionOpenedType === 'RESTORE'
-                  ? t('archives.restoreFormsConfirm', { count: selectedForms.length })
-                  : t('archives.deleteFormsConfirm', { count: selectedForms.length })
+                  ? t('archives.restoreFormsConfirm', { count: getSelectedCount() })
+                  : t('archives.deleteFormsConfirm', { count: getSelectedCount() })
                 }
               </DialogDescription>
             </DialogHeader>

@@ -278,6 +278,7 @@
     "searchForms": "Search forms...",
     "selectAll": "Select All",
     "deselectAll": "Deselect All",
+    "allSelected": "All Selected",
     "restore": "Restore",
     "delete": "Delete",
     "noFormsMatch": "No forms match your search",
