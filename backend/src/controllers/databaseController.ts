@@ -85,6 +85,16 @@ export const createDatabase = async (
   const { name } = req.body;
 
   try {
+    // Verify user exists
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+    });
+
+    if (!user) {
+      res.status(401).json({ error: 'User not found' });
+      return;
+    }
+
     // Check if database name already exists for this user
     const existingDb = await prisma.database.findFirst({
       where: { name, userId: req.user!.id },

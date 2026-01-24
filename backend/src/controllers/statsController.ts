@@ -7,6 +7,16 @@ export const getStats = async (
   res: Response
 ): Promise<void> => {
   try {
+    // Verify user exists
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+    });
+
+    if (!user) {
+      res.status(401).json({ error: 'User not found' });
+      return;
+    }
+
     // Count forms
     const formsCount = await prisma.form.count({
       where: { userId: req.user!.id },
