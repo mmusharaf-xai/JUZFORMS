@@ -214,13 +214,13 @@ const Settings: React.FC = () => {
   };
 
   const handleRestore = () => {
-    if (selectedForms.length > 0) {
+    if (selectedForms.length > 0 || selectedAll) {
       setActionOpenedType('RESTORE');
     }
   };
 
   const handleDelete = () => {
-    if (selectedForms.length > 0) {
+    if (selectedForms.length > 0 || selectedAll) {
       setActionOpenedType('DELETE');
     }
   };
