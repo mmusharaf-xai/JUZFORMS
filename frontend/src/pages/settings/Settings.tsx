@@ -7,6 +7,7 @@ import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -14,8 +15,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { Stats, Form, Database, DatabaseRow } from '@/types';
-import { FileText, Send, Database as DatabaseIcon, User, Lock, BarChart3, Archive } from 'lucide-react';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
+import type { Stats, Form, Database, DatabaseRow, DatabaseColumn } from '@/types';
+import { FileText, Send, Database as DatabaseIcon, User, Lock, BarChart3, Archive, Filter, X, Plus } from 'lucide-react';
+
+interface FilterState {
+  column: string;
+  operator: string;
+  value: string;
+}
 
 const Settings: React.FC = () => {
   const { t } = useTranslation();
@@ -76,11 +84,15 @@ const Settings: React.FC = () => {
   // Database Rows Archives
   const [databasesWithDeletedRows, setDatabasesWithDeletedRows] = useState<Database[]>([]);
   const [selectedRowsDatabase, setSelectedRowsDatabase] = useState<Database | null>(null);
+  const [archivedRowsColumns, setArchivedRowsColumns] = useState<DatabaseColumn[]>([]);
   const [archivedRows, setArchivedRows] = useState<DatabaseRow[]>([]);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedAllRows, setSelectedAllRows] = useState(false);
   const [searchTermRowsDatabases, setSearchTermRowsDatabases] = useState('');
   const [searchTermRows, setSearchTermRows] = useState('');
+  const [filtersRows, setFiltersRows] = useState<FilterState[]>([]);
+  const [tempFiltersRows, setTempFiltersRows] = useState<FilterState[]>([]);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [isLoadingRowsDatabases, setIsLoadingRowsDatabases] = useState(false);
   const [isLoadingRows, setIsLoadingRows] = useState(false);
   const [currentPageRowsDatabases, setCurrentPageRowsDatabases] = useState(1);
@@ -188,26 +200,30 @@ const Settings: React.FC = () => {
     }
   };
 
-  const loadArchivedRows = async (databaseId: string, page = 1, search = '') => {
+  const loadArchivedRows = async (databaseId: string, page = 1, search = '', filtersToApply?: FilterState[]) => {
     setIsLoadingRows(true);
     try {
+      const activeFilters = filtersToApply !== undefined ? filtersToApply : filtersRows;
       const response = await databaseApi.getDeletedRows(databaseId, {
         search: search.trim(),
         page,
         limit: 10,
+        filters: activeFilters.length > 0 ? JSON.stringify(activeFilters) : undefined,
       });
+      setArchivedRowsColumns(response.data.columns);
       setArchivedRows(response.data.rows);
       setTotalPagesRows(response.data.pagination.pages);
       setTotalRows(response.data.pagination.total);
       setCurrentPageRows(page);
 
-      // Reset selection state when search changes
-      if (search !== searchTermRows) {
+      // Reset selection state when search or filters change
+      if (search !== searchTermRows || JSON.stringify(filtersToApply || filtersRows) !== JSON.stringify(filtersRows)) {
         setSelectedRows([]);
         setSelectedAllRows(false);
       }
     } catch (error) {
       console.error('Failed to load archived rows:', error);
+      setArchivedRowsColumns([]);
       setArchivedRows([]);
       setTotalPagesRows(1);
       setTotalRows(0);
@@ -529,13 +545,13 @@ const Settings: React.FC = () => {
         if (!selectedRowsDatabase) {
           loadDatabasesWithDeletedRows(1, searchTermRowsDatabases);
         } else {
-          loadArchivedRows(selectedRowsDatabase.id, 1, searchTermRows);
+          loadArchivedRows(selectedRowsDatabase.id, 1, searchTermRows, filtersRows);
         }
       }
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchTermRowsDatabases, searchTermRows, selectedRowsDatabase]);
+  }, [searchTermRowsDatabases, searchTermRows, selectedRowsDatabase, filtersRows]);
 
   const handlePageChangeForms = (page: number) => {
     loadArchivedForms(page, searchTermForms);
@@ -551,7 +567,7 @@ const Settings: React.FC = () => {
 
   const handlePageChangeRows = (page: number) => {
     if (selectedRowsDatabase) {
-      loadArchivedRows(selectedRowsDatabase.id, page, searchTermRows);
+      loadArchivedRows(selectedRowsDatabase.id, page, searchTermRows, filtersRows);
     }
   };
 
@@ -566,6 +582,67 @@ const Settings: React.FC = () => {
 
   const getSelectedCountRows = () => {
     return selectedAllRows ? totalRows : selectedRows.length;
+  };
+
+  // Format cell value based on column type
+  const formatCellValue = (value: unknown, type: string) => {
+    if (value === null || value === undefined) return '-';
+
+    switch (type) {
+      case 'JSON':
+        return typeof value === 'object' ? JSON.stringify(value) : String(value);
+      case 'DATE':
+        try {
+          return new Date(value as string).toLocaleDateString();
+        } catch {
+          return String(value);
+        }
+      case 'DATETIME':
+        try {
+          return new Date(value as string).toLocaleString();
+        } catch {
+          return String(value);
+        }
+      default:
+        return String(value);
+    }
+  };
+
+  // Filter functions
+  const addFilterRow = () => {
+    setTempFiltersRows([...tempFiltersRows, { column: '', operator: 'equals', value: '' }]);
+  };
+
+  const updateTempFilterRow = (index: number, updates: Partial<FilterState>) => {
+    const updated = [...tempFiltersRows];
+    updated[index] = { ...updated[index], ...updates };
+    setTempFiltersRows(updated);
+  };
+
+  const removeFilterRow = (index: number) => {
+    setTempFiltersRows(tempFiltersRows.filter((_, i) => i !== index));
+  };
+
+  const applyFiltersRows = () => {
+    setFiltersRows([...tempFiltersRows]);
+    setIsFilterDrawerOpen(false);
+    if (selectedRowsDatabase) {
+      loadArchivedRows(selectedRowsDatabase.id, 1, searchTermRows, tempFiltersRows);
+    }
+  };
+
+  const clearFiltersRows = () => {
+    setTempFiltersRows([]);
+    setFiltersRows([]);
+    setIsFilterDrawerOpen(false);
+    if (selectedRowsDatabase) {
+      loadArchivedRows(selectedRowsDatabase.id, 1, searchTermRows, []);
+    }
+  };
+
+  const openFilterDrawer = () => {
+    setTempFiltersRows([...filtersRows]);
+    setIsFilterDrawerOpen(true);
   };
 
   const statCards = [
@@ -1162,6 +1239,8 @@ const Settings: React.FC = () => {
                                 setSelectedRows([]);
                                 setSelectedAllRows(false);
                                 setSearchTermRows('');
+                                setFiltersRows([]);
+                                setTempFiltersRows([]);
                               }}
                             >
                               ← {t('common.back')}
@@ -1291,6 +1370,15 @@ const Settings: React.FC = () => {
                                 onChange={(e) => setSearchTermRows(e.target.value)}
                                 className="max-w-sm"
                               />
+                              {selectedRowsDatabase && (
+                                <Button
+                                  variant={filtersRows.length > 0 ? 'default' : 'outline'}
+                                  onClick={openFilterDrawer}
+                                >
+                                  <Filter className="h-4 w-4 mr-2" />
+                                  {t('common.filters')} {filtersRows.length > 0 && `(${filtersRows.length})`}
+                                </Button>
+                              )}
                               <div className="flex gap-2">
                                 <Button
                                   variant="outline"
@@ -1349,7 +1437,12 @@ const Settings: React.FC = () => {
                                           onCheckedChange={handleSelectAllRows}
                                         />
                                       </TableHead>
-                                      <TableHead>{t('archives.rowData')}</TableHead>
+                                      {archivedRowsColumns.map((column) => (
+                                        <TableHead key={column.id}>
+                                          {column.name}
+                                          {column.is_unique && <span className="text-xs text-muted-foreground ml-1">(unique)</span>}
+                                        </TableHead>
+                                      ))}
                                       <TableHead>{t('common.createdAt')}</TableHead>
                                       <TableHead>{t('common.updatedAt')}</TableHead>
                                     </TableRow>
@@ -1363,11 +1456,13 @@ const Settings: React.FC = () => {
                                             onCheckedChange={(checked) => handleSelectRow(row.id, checked as boolean)}
                                           />
                                         </TableCell>
-                                        <TableCell>
-                                          <div className="max-w-xs truncate" title={JSON.stringify(row.data)}>
-                                            {JSON.stringify(row.data)}
-                                          </div>
-                                        </TableCell>
+                                        {archivedRowsColumns.map((column) => (
+                                          <TableCell key={column.id}>
+                                            <div className="max-w-xs truncate">
+                                              {formatCellValue(row.data[column.name], column.type)}
+                                            </div>
+                                          </TableCell>
+                                        ))}
                                         <TableCell>{new Date(row.created_at).toLocaleDateString()}</TableCell>
                                         <TableCell>{new Date(row.updated_at).toLocaleDateString()}</TableCell>
                                       </TableRow>
@@ -1536,6 +1631,85 @@ const Settings: React.FC = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Filter Drawer for Archived Rows */}
+        <Drawer open={isFilterDrawerOpen} onOpenChange={setIsFilterDrawerOpen}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>{t('common.filters')}</DrawerTitle>
+            </DrawerHeader>
+            <div className="p-4 space-y-4">
+              {tempFiltersRows.map((filter, index) => (
+                <div key={index} className="flex items-center gap-2 p-3 border rounded-lg">
+                  <Select
+                    value={filter.column}
+                    onValueChange={(value) => updateTempFilterRow(index, { column: value })}
+                  >
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder={t('database.selectColumn')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {archivedRowsColumns.map((column) => (
+                        <SelectItem key={column.id} value={column.name}>
+                          {column.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={filter.operator}
+                    onValueChange={(value) => updateTempFilterRow(index, { operator: value })}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="equals">{t('database.filterOperators.equals')}</SelectItem>
+                      <SelectItem value="contains">{t('database.filterOperators.contains')}</SelectItem>
+                      <SelectItem value="starts_with">{t('database.filterOperators.starts_with')}</SelectItem>
+                      <SelectItem value="ends_with">{t('database.filterOperators.ends_with')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Input
+                    value={filter.value}
+                    onChange={(e) => updateTempFilterRow(index, { value: e.target.value })}
+                    placeholder={t('database.enterValue')}
+                    className="flex-1"
+                  />
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFilterRow(index)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+
+              <Button
+                variant="outline"
+                onClick={addFilterRow}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {t('database.addFilter')}
+              </Button>
+            </div>
+            <DrawerFooter>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={clearFiltersRows}>
+                  {t('common.clearAll')}
+                </Button>
+                <Button onClick={applyFiltersRows}>
+                  {t('database.applyFilters')}
+                </Button>
+              </div>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
       </div>
     </Layout>
   );

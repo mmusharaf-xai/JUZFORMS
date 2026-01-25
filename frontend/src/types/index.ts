@@ -144,6 +144,17 @@ export interface DatabaseRow {
   database_name?: string;
 }
 
+export interface ArchivedRowsResponse {
+  columns: DatabaseColumn[];
+  rows: DatabaseRow[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
 export interface FormSubmission {
   id: string;
   form_id: string;

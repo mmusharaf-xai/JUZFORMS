@@ -367,9 +367,31 @@ export const deleteColumn = async (
       return;
     }
 
+    // Delete the column
     await prisma.databaseColumn.delete({
       where: { id: columnId },
     });
+
+    // Remove the column data from all archived rows for this database
+    const archivedRows = await prisma.databaseRow.findMany({
+      where: {
+        databaseId: id,
+        deletedAt: { not: null },
+      },
+    });
+
+    if (archivedRows.length > 0) {
+      // Update each archived row to remove the column data
+      for (const row of archivedRows) {
+        const updatedData = { ...row.data };
+        delete updatedData[column.name];
+
+        await prisma.databaseRow.update({
+          where: { id: row.id },
+          data: { data: updatedData as Prisma.InputJsonValue },
+        });
+      }
+    }
 
     res.json({ message: 'Column deleted successfully' });
   } catch (error) {
@@ -886,7 +908,7 @@ export const getDeletedRows = async (
 ): Promise<void> => {
   try {
     const { database_id } = req.params;
-    const { search, page = 1, limit = 10 } = req.query;
+    const { search, page = 1, limit = 10, filters } = req.query;
     const pageNumber = parseInt(page as string, 10) || 1;
     const pageSize = parseInt(limit as string, 10) || 10;
     const skip = (pageNumber - 1) * pageSize;
@@ -906,10 +928,14 @@ export const getDeletedRows = async (
       return;
     }
 
-    // Get total count for pagination
-    const totalCount = await prisma.databaseRow.count({ where });
+    // Get database columns
+    const columns = await prisma.databaseColumn.findMany({
+      where: { databaseId: database_id as string },
+      orderBy: { order: 'asc' },
+    });
 
-    const rows = await prisma.databaseRow.findMany({
+    // Fetch all deleted rows
+    const allRows = await prisma.databaseRow.findMany({
       where,
       include: {
         database: {
@@ -920,11 +946,84 @@ export const getDeletedRows = async (
         },
       },
       orderBy: { deletedAt: 'desc' },
-      skip,
-      take: pageSize,
+    });
+
+    let filteredRows = allRows;
+
+    // Apply filters if provided
+    if (filters) {
+      try {
+        const filterArray = JSON.parse(filters as string) as Array<{
+          column: string;
+          operator: string;
+          value: string;
+        }>;
+
+        filterArray.forEach((filter) => {
+          filteredRows = filteredRows.filter((row) => {
+            const data = row.data as Record<string, unknown>;
+            const value = String(data[filter.column] || '');
+            const filterValue = filter.value;
+
+            switch (filter.operator) {
+              case 'equals':
+                return value === filterValue;
+              case 'contains':
+                return value.toLowerCase().includes(filterValue.toLowerCase());
+              case 'starts_with':
+                return value.toLowerCase().startsWith(filterValue.toLowerCase());
+              case 'ends_with':
+                return value.toLowerCase().endsWith(filterValue.toLowerCase());
+              default:
+                return true;
+            }
+          });
+        });
+      } catch {
+        // Invalid filter format, continue without filtering
+      }
+    }
+
+    // Apply pagination
+    const paginatedRows = filteredRows.slice(skip, skip + pageSize);
+
+    res.json({
+      columns: columns.map((col) => ({
+        id: col.id,
+        database_id: col.databaseId,
+        name: col.name,
+        type: col.type,
+        is_unique: col.isUnique,
+        order: col.order,
+        created_at: col.createdAt,
+      })),
+      rows: paginatedRows.map((row) => ({
+        id: row.id,
+        database_id: row.databaseId,
+        database_name: row.database.name,
+        data: row.data,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+        deleted_at: row.deletedAt,
+      })),
+      pagination: {
+        page: pageNumber,
+        limit: pageSize,
+        total: filteredRows.length,
+        pages: Math.ceil(filteredRows.length / pageSize),
+      },
     });
 
     res.json({
+      columns: columns.map((col) => ({
+        id: col.id,
+        database_id: col.databaseId,
+        name: col.name,
+        type: col.type,
+        is_unique: col.isUnique,
+        order: col.order,
+        created_at: col.createdAt,
+      })),
       rows: rows.map((row) => ({
         id: row.id,
         database_id: row.databaseId,
