@@ -7,7 +7,7 @@ import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
+import { Drawer, DrawerContent, DrawerFooter } from '@/components/ui/drawer';
 import type { Stats, Form, Database, DatabaseRow, DatabaseColumn } from '@/types';
 import { FileText, Send, Database as DatabaseIcon, User, Lock, BarChart3, Archive, Filter, X, Plus } from 'lucide-react';
 
@@ -1633,82 +1633,59 @@ const Settings: React.FC = () => {
         </Dialog>
 
         {/* Filter Drawer for Archived Rows */}
-        <Drawer open={isFilterDrawerOpen} onOpenChange={setIsFilterDrawerOpen}>
+        <Drawer
+          open={isFilterDrawerOpen}
+          onOpenChange={setIsFilterDrawerOpen}
+          title={t('common.filters')}
+        >
           <DrawerContent>
-            <DrawerHeader>
-              <DrawerTitle>{t('common.filters')}</DrawerTitle>
-            </DrawerHeader>
-            <div className="p-4 space-y-4">
+            <div className="space-y-4">
               {tempFiltersRows.map((filter, index) => (
-                <div key={index} className="flex items-center gap-2 p-3 border rounded-lg">
+                <div key={index} className="space-y-2 p-3 border rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <Label>{t('database.selectColumn')}</Label>
+                    <Button variant="ghost" size="sm" onClick={() => removeFilterRow(index)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <Select
                     value={filter.column}
-                    onValueChange={(value) => updateTempFilterRow(index, { column: value })}
-                  >
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder={t('database.selectColumn')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {archivedRowsColumns.map((column) => (
-                        <SelectItem key={column.id} value={column.name}>
-                          {column.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
+                    onChange={(e) => updateTempFilterRow(index, { column: e.target.value })}
+                    options={archivedRowsColumns.map((c) => ({ value: c.name, label: c.name }))}
+                  />
+                  <Label>{t('database.selectOperator')}</Label>
                   <Select
                     value={filter.operator}
-                    onValueChange={(value) => updateTempFilterRow(index, { operator: value })}
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="equals">{t('database.filterOperators.equals')}</SelectItem>
-                      <SelectItem value="contains">{t('database.filterOperators.contains')}</SelectItem>
-                      <SelectItem value="starts_with">{t('database.filterOperators.starts_with')}</SelectItem>
-                      <SelectItem value="ends_with">{t('database.filterOperators.ends_with')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-
+                    onChange={(e) => updateTempFilterRow(index, { operator: e.target.value })}
+                    options={[
+                      { value: 'equals', label: t('database.filterOperators.equals') },
+                      { value: 'contains', label: t('database.filterOperators.contains') },
+                      { value: 'starts_with', label: t('database.filterOperators.starts_with') },
+                      { value: 'ends_with', label: t('database.filterOperators.ends_with') },
+                    ]}
+                  />
+                  <Label>{t('database.enterValue')}</Label>
                   <Input
                     value={filter.value}
                     onChange={(e) => updateTempFilterRow(index, { value: e.target.value })}
                     placeholder={t('database.enterValue')}
-                    className="flex-1"
                   />
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeFilterRow(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
               ))}
-
-              <Button
-                variant="outline"
-                onClick={addFilterRow}
-                className="w-full"
-              >
+              <Button variant="outline" size="sm" onClick={addFilterRow} className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
                 {t('database.addFilter')}
               </Button>
             </div>
-            <DrawerFooter>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={clearFiltersRows}>
-                  {t('common.clearAll')}
-                </Button>
-                <Button onClick={applyFiltersRows}>
-                  {t('database.applyFilters')}
-                </Button>
-              </div>
-            </DrawerFooter>
           </DrawerContent>
+          <DrawerFooter>
+            <Button variant="outline" onClick={clearFiltersRows}>
+              {t('common.clearAll')}
+            </Button>
+            <Button onClick={applyFiltersRows}>
+              {t('database.applyFilters')}
+            </Button>
+          </DrawerFooter>
         </Drawer>
       </div>
     </Layout>
