@@ -383,7 +383,8 @@ export const deleteColumn = async (
     if (archivedRows.length > 0) {
       // Update each archived row to remove the column data
       for (const row of archivedRows) {
-        const updatedData = { ...row.data };
+        const currentData = row.data as Record<string, unknown>;
+        const updatedData = { ...currentData };
         delete updatedData[column.name];
 
         await prisma.databaseRow.update({
@@ -1011,33 +1012,6 @@ export const getDeletedRows = async (
         limit: pageSize,
         total: filteredRows.length,
         pages: Math.ceil(filteredRows.length / pageSize),
-      },
-    });
-
-    res.json({
-      columns: columns.map((col) => ({
-        id: col.id,
-        database_id: col.databaseId,
-        name: col.name,
-        type: col.type,
-        is_unique: col.isUnique,
-        order: col.order,
-        created_at: col.createdAt,
-      })),
-      rows: rows.map((row) => ({
-        id: row.id,
-        database_id: row.databaseId,
-        database_name: row.database.name,
-        data: row.data,
-        created_at: row.createdAt,
-        updated_at: row.updatedAt,
-        deleted_at: row.deletedAt,
-      })),
-      pagination: {
-        page: pageNumber,
-        limit: pageSize,
-        total: totalCount,
-        pages: Math.ceil(totalCount / pageSize),
       },
     });
   } catch (error) {
