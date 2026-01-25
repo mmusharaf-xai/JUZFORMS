@@ -135,9 +135,8 @@ export type ColumnType =
   | 'RATINGS';
 
 export interface DatabaseRow {
-  id: string;
+  id: number;
   database_id: string;
-  row_number: number;
   data: Record<string, unknown>;
   created_at: string;
   updated_at: string;

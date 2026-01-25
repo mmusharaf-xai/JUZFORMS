@@ -24,7 +24,6 @@
     "filter": "Filter",
     "createdAt": "Created At",
     "updatedAt": "Updated At",
-    "rowNumber": "Row #",
     "filters": "Filters",
     "sort": "Sort",
     "clearAll": "Clear All",

@@ -1472,7 +1472,7 @@ const Settings: React.FC = () => {
                                           {column.is_unique && <span className="text-xs text-muted-foreground ml-1">(unique)</span>}
                                         </TableHead>
                                       ))}
-                                      <TableHead>{t('common.rowNumber')}</TableHead>
+                                      <TableHead>ID</TableHead>
                                       <TableHead>{t('common.updatedAt')}</TableHead>
                                     </TableRow>
                                   </TableHeader>
@@ -1492,7 +1492,7 @@ const Settings: React.FC = () => {
                                             </div>
                                           </TableCell>
                                         ))}
-                                        <TableCell>{row.row_number}</TableCell>
+                                        <TableCell>{row.id}</TableCell>
                                         <TableCell>{new Date(row.updated_at).toLocaleDateString()}</TableCell>
                                       </TableRow>
                                     ))}
