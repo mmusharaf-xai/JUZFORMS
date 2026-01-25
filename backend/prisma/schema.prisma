@@ -92,6 +92,7 @@ model DatabaseColumn {
 model DatabaseRow {
   id         String   @id @default(uuid())
   databaseId String   @map("database_id")
+  rowNumber  Int      @default(1) @map("row_number")
   data       Json
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
@@ -99,6 +100,7 @@ model DatabaseRow {
 
   database Database @relation(fields: [databaseId], references: [id], onDelete: Cascade)
 
+  @@unique([databaseId, rowNumber])
   @@index([databaseId])
   @@index([deletedAt])
   @@map("database_rows")

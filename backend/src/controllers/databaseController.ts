@@ -483,6 +483,7 @@ export const getRows = async (
       rows: filteredRows.map((row) => ({
         id: row.id,
         database_id: row.databaseId,
+        row_number: row.rowNumber,
         data: row.data,
         created_at: row.createdAt,
         updated_at: row.updatedAt,
@@ -535,9 +536,17 @@ export const addRow = async (
       }
     }
 
+    // Get the next row number for this database
+    const lastRow = await prisma.databaseRow.findFirst({
+      where: { databaseId: id },
+      orderBy: { rowNumber: 'desc' },
+    });
+    const nextRowNumber = (lastRow?.rowNumber || 0) + 1;
+
     const row = await prisma.databaseRow.create({
       data: {
         databaseId: id,
+        rowNumber: nextRowNumber,
         data: data as Prisma.InputJsonValue,
       },
     });
@@ -547,6 +556,7 @@ export const addRow = async (
       row: {
         id: row.id,
         database_id: row.databaseId,
+        row_number: row.rowNumber,
         data: row.data,
         created_at: row.createdAt,
         updated_at: row.updatedAt,
@@ -1026,6 +1036,7 @@ export const getDeletedRows = async (
       rows: paginatedRows.map((row) => ({
         id: row.id,
         database_id: row.databaseId,
+        row_number: row.rowNumber,
         database_name: row.database.name,
         data: row.data,
         created_at: row.createdAt,

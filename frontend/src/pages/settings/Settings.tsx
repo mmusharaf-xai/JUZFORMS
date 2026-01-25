@@ -459,6 +459,10 @@ const Settings: React.FC = () => {
           await formsApi.bulkDeleteForms(payload);
         }
 
+        // Close modal first
+        setActionOpenedType(null);
+        setCurrentArchiveType(null);
+
         // Reset selection state
         setSelectedForms([]);
         setSelectedAllForms(false);
@@ -477,6 +481,10 @@ const Settings: React.FC = () => {
         } else if (actionOpenedType === 'DELETE') {
           await databaseApi.bulkDeleteDatabases(payload);
         }
+
+        // Close modal first
+        setActionOpenedType(null);
+        setCurrentArchiveType(null);
 
         // Reset selection state
         setSelectedDatabases([]);
@@ -499,6 +507,10 @@ const Settings: React.FC = () => {
           await databaseApi.bulkDeleteRows(payload);
         }
 
+        // Close modal first
+        setActionOpenedType(null);
+        setCurrentArchiveType(null);
+
         // Reset selection state
         setSelectedRows([]);
         setSelectedAllRows(false);
@@ -510,8 +522,6 @@ const Settings: React.FC = () => {
         await loadDatabasesWithDeletedRows(1, searchTermRowsDatabases);
       }
 
-      setActionOpenedType(null);
-      setCurrentArchiveType(null);
     } catch (error) {
       console.error(`Failed to ${actionOpenedType.toLowerCase()} ${currentArchiveType}:`, error);
       // Don't reset selection state on error so user can retry
@@ -947,8 +957,7 @@ const Settings: React.FC = () => {
                           }}
                           disabled={getSelectedCountForms() === 0 || isActionLoading}
                         >
-                          {isActionLoading && actionOpenedType === 'RESTORE' && <Spinner className="mr-2" size="sm" />}
-                          {isActionLoading && actionOpenedType === 'RESTORE' ? t('common.loading') : t('archives.restore')}
+                          {t('archives.restore')}
                         </Button>
                         <Button
                           variant="destructive"
@@ -958,8 +967,7 @@ const Settings: React.FC = () => {
                           }}
                           disabled={getSelectedCountForms() === 0 || isActionLoading}
                         >
-                          {isActionLoading && actionOpenedType === 'DELETE' && <Spinner className="mr-2" size="sm" />}
-                          {isActionLoading && actionOpenedType === 'DELETE' ? t('common.loading') : t('archives.delete')}
+                          {t('archives.delete')}
                         </Button>
                       </div>
                     </div>
@@ -1109,8 +1117,7 @@ const Settings: React.FC = () => {
                               }}
                               disabled={getSelectedCountDatabases() === 0 || isActionLoading}
                             >
-                              {isActionLoading && actionOpenedType === 'RESTORE' && <Spinner className="mr-2" size="sm" />}
-                              {isActionLoading && actionOpenedType === 'RESTORE' ? t('common.loading') : t('archives.restore')}
+                              {t('archives.restore')}
                             </Button>
                             <Button
                               variant="destructive"
@@ -1120,8 +1127,7 @@ const Settings: React.FC = () => {
                               }}
                               disabled={getSelectedCountDatabases() === 0 || isActionLoading}
                             >
-                              {isActionLoading && actionOpenedType === 'DELETE' && <Spinner className="mr-2" size="sm" />}
-                              {isActionLoading && actionOpenedType === 'DELETE' ? t('common.loading') : t('archives.delete')}
+                              {t('archives.delete')}
                             </Button>
                           </div>
                         </div>
@@ -1426,8 +1432,7 @@ const Settings: React.FC = () => {
                                   }}
                                   disabled={getSelectedCountRows() === 0 || isActionLoading}
                                 >
-                                  {isActionLoading && actionOpenedType === 'RESTORE' && <Spinner className="mr-2" size="sm" />}
-                                  {isActionLoading && actionOpenedType === 'RESTORE' ? t('common.loading') : t('archives.restore')}
+                                  {t('archives.restore')}
                                 </Button>
                                 <Button
                                   variant="destructive"
@@ -1437,8 +1442,7 @@ const Settings: React.FC = () => {
                                   }}
                                   disabled={getSelectedCountRows() === 0 || isActionLoading}
                                 >
-                                  {isActionLoading && actionOpenedType === 'DELETE' && <Spinner className="mr-2" size="sm" />}
-                                  {isActionLoading && actionOpenedType === 'DELETE' ? t('common.loading') : t('archives.delete')}
+                                  {t('archives.delete')}
                                 </Button>
                               </div>
                             </div>
@@ -1468,7 +1472,7 @@ const Settings: React.FC = () => {
                                           {column.is_unique && <span className="text-xs text-muted-foreground ml-1">(unique)</span>}
                                         </TableHead>
                                       ))}
-                                      <TableHead>{t('common.createdAt')}</TableHead>
+                                      <TableHead>{t('common.rowNumber')}</TableHead>
                                       <TableHead>{t('common.updatedAt')}</TableHead>
                                     </TableRow>
                                   </TableHeader>
@@ -1488,7 +1492,7 @@ const Settings: React.FC = () => {
                                             </div>
                                           </TableCell>
                                         ))}
-                                        <TableCell>{new Date(row.created_at).toLocaleDateString()}</TableCell>
+                                        <TableCell>{row.row_number}</TableCell>
                                         <TableCell>{new Date(row.updated_at).toLocaleDateString()}</TableCell>
                                       </TableRow>
                                     ))}

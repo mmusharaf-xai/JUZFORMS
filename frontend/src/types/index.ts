@@ -137,6 +137,7 @@ export type ColumnType =
 export interface DatabaseRow {
   id: string;
   database_id: string;
+  row_number: number;
   data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
