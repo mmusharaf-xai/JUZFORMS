@@ -117,13 +117,12 @@ export const databaseApi = {
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     return api.get(`/databases/archives/rows/databases?${queryParams.toString()}`);
   },
-  getDeletedRows: (params?: { search?: string; page?: number; limit?: number; database_id?: string }) => {
+  getDeletedRows: (databaseId: string, params?: { search?: string; page?: number; limit?: number }) => {
     const queryParams = new URLSearchParams();
     if (params?.search) queryParams.append('search', params.search);
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.database_id) queryParams.append('database_id', params.database_id);
-    return api.get(`/databases/archives/rows?${queryParams.toString()}`);
+    return api.get(`/databases/archives/rows/${databaseId}?${queryParams.toString()}`);
   },
   restoreRow: (id: string) => api.post(`/databases/rows/${id}/restore`),
   permanentDeleteRow: (id: string) => api.delete(`/databases/rows/${id}/permanent`),

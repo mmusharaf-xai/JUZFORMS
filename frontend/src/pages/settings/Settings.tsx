@@ -191,11 +191,10 @@ const Settings: React.FC = () => {
   const loadArchivedRows = async (databaseId: string, page = 1, search = '') => {
     setIsLoadingRows(true);
     try {
-      const response = await databaseApi.getDeletedRows({
+      const response = await databaseApi.getDeletedRows(databaseId, {
         search: search.trim(),
         page,
         limit: 10,
-        database_id: databaseId,
       });
       setArchivedRows(response.data.rows);
       setTotalPagesRows(response.data.pagination.pages);

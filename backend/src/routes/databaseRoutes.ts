@@ -51,7 +51,7 @@ router.get('/archives/databases', authenticate, getDeletedDatabases);
 router.post('/:id/restore', authenticate, restoreDatabase);
 router.delete('/:id/permanent', authenticate, permanentDeleteDatabase);
 router.get('/archives/rows/databases', authenticate, getDatabasesWithDeletedRows);
-router.get('/archives/rows', authenticate, getDeletedRows);
+router.get('/archives/rows/:database_id', authenticate, getDeletedRows);
 router.post('/rows/:id/restore', authenticate, restoreRow);
 router.delete('/rows/:id/permanent', authenticate, permanentDeleteRow);
 router.post('/archives/bulk-restore', authenticate, bulkRestoreDatabases);

@@ -397,9 +397,9 @@ export const getRows = async (
       return;
     }
 
-    // Fetch all rows
+    // Fetch all non-deleted rows
     const allRows = await prisma.databaseRow.findMany({
-      where: { databaseId: id },
+      where: { databaseId: id, deletedAt: null },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -860,6 +860,7 @@ export const getDatabasesWithDeletedRows = async (
     res.json({
       databases: databasesWithRows.map((db) => ({
         id: db.id,
+        user_id: db.userId,
         name: db.name,
         created_at: db.createdAt,
         updated_at: db.updatedAt,
@@ -883,7 +884,8 @@ export const getDeletedRows = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { search, page = 1, limit = 10, database_id } = req.query;
+    const { database_id } = req.params;
+    const { search, page = 1, limit = 10 } = req.query;
     const pageNumber = parseInt(page as string, 10) || 1;
     const pageSize = parseInt(limit as string, 10) || 10;
     const skip = (pageNumber - 1) * pageSize;
@@ -891,21 +893,15 @@ export const getDeletedRows = async (
     // Build where clause
     const where: any = {
       deletedAt: { not: null },
+      databaseId: database_id,
     };
 
-    // Show rows from the specified database
-    if (database_id) {
-      where.databaseId = database_id;
-      // Check if database exists and belongs to user
-      const database = await prisma.database.findFirst({
-        where: { id: database_id as string, userId: req.user!.id, deletedAt: null },
-      });
-      if (!database) {
-        res.status(404).json({ error: 'Database not found' });
-        return;
-      }
-    } else {
-      res.status(400).json({ error: 'database_id parameter is required' });
+    // Check if database exists and belongs to user
+    const database = await prisma.database.findFirst({
+      where: { id: database_id, userId: req.user!.id, deletedAt: null },
+    });
+    if (!database) {
+      res.status(404).json({ error: 'Database not found' });
       return;
     }
 
