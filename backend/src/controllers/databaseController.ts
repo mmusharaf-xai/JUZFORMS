@@ -955,7 +955,7 @@ export const getDeletedRows = async (
     let filteredRows = allRows;
 
     // Apply search if provided
-    if (search && search.trim()) {
+    if (search && typeof search === 'string' && search.trim()) {
       const searchTerm = search.trim().toLowerCase();
       filteredRows = filteredRows.filter((row) => {
         const data = row.data as Record<string, unknown>;
