@@ -829,6 +829,7 @@ export const getDatabasesWithDeletedRows = async (
       },
       select: {
         id: true,
+        userId: true,
         name: true,
         createdAt: true,
         updatedAt: true,
@@ -893,12 +894,12 @@ export const getDeletedRows = async (
     // Build where clause
     const where: any = {
       deletedAt: { not: null },
-      databaseId: database_id,
+      databaseId: database_id as string,
     };
 
     // Check if database exists and belongs to user
     const database = await prisma.database.findFirst({
-      where: { id: database_id, userId: req.user!.id, deletedAt: null },
+      where: { id: database_id as string, userId: req.user!.id, deletedAt: null },
     });
     if (!database) {
       res.status(404).json({ error: 'Database not found' });
@@ -1195,10 +1196,10 @@ export const bulkRestoreRows = async (
       };
 
       if (database_id) {
-        where.databaseId = database_id;
+        where.databaseId = database_id as string;
         // Check if database exists and is not deleted
         const database = await prisma.database.findFirst({
-          where: { id: database_id, userId: req.user!.id },
+          where: { id: database_id as string, userId: req.user!.id },
         });
         if (!database || database.deletedAt) {
           res.status(400).json({ error: 'Cannot restore rows from a deleted database' });
@@ -1284,10 +1285,10 @@ export const bulkDeleteRows = async (
       };
 
       if (database_id) {
-        where.databaseId = database_id;
+        where.databaseId = database_id as string;
         // Check if database exists
         const database = await prisma.database.findFirst({
-          where: { id: database_id, userId: req.user!.id },
+          where: { id: database_id as string, userId: req.user!.id },
         });
         if (!database) {
           res.status(404).json({ error: 'Database not found' });
