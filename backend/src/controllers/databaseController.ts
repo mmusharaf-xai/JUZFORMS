@@ -440,12 +440,15 @@ export const getRows = async (
         filterArray.forEach((filter) => {
           filteredRows = filteredRows.filter((row) => {
             const data = row.data as Record<string, unknown>;
+            if (typeof data !== 'object' || data === null || !(filter.column in data)) {
+              return true; // Skip filter if column doesn't exist in data
+            }
             const value = String(data[filter.column] || '');
             const filterValue = filter.value;
 
             switch (filter.operator) {
               case 'equals':
-                return value === filterValue;
+                return value.toLowerCase() === filterValue.toLowerCase();
               case 'contains':
                 return value.toLowerCase().includes(filterValue.toLowerCase());
               case 'starts_with':
@@ -951,6 +954,21 @@ export const getDeletedRows = async (
 
     let filteredRows = allRows;
 
+    // Apply search if provided
+    if (search && search.trim()) {
+      const searchTerm = search.trim().toLowerCase();
+      filteredRows = filteredRows.filter((row) => {
+        const data = row.data as Record<string, unknown>;
+        if (typeof data === 'object' && data !== null) {
+          // Search in all string values in the row data
+          return Object.values(data).some(value =>
+            String(value || '').toLowerCase().includes(searchTerm)
+          );
+        }
+        return false;
+      });
+    }
+
     // Apply filters if provided
     if (filters) {
       try {
@@ -963,12 +981,15 @@ export const getDeletedRows = async (
         filterArray.forEach((filter) => {
           filteredRows = filteredRows.filter((row) => {
             const data = row.data as Record<string, unknown>;
+            if (typeof data !== 'object' || data === null || !(filter.column in data)) {
+              return true; // Skip filter if column doesn't exist in data
+            }
             const value = String(data[filter.column] || '');
             const filterValue = filter.value;
 
             switch (filter.operator) {
               case 'equals':
-                return value === filterValue;
+                return value.toLowerCase() === filterValue.toLowerCase();
               case 'contains':
                 return value.toLowerCase().includes(filterValue.toLowerCase());
               case 'starts_with':
