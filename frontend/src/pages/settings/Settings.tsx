@@ -15,7 +15,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Stats, Form, Database, DatabaseRow } from '@/types';
-import { FileText, Send, Database, User, Lock, BarChart3, Archive } from 'lucide-react';
+import { FileText, Send, Database as DatabaseIcon, User, Lock, BarChart3, Archive } from 'lucide-react';
 
 const Settings: React.FC = () => {
   const { t } = useTranslation();
@@ -535,7 +535,7 @@ const Settings: React.FC = () => {
     {
       title: t('stats.databasesCreated'),
       value: stats?.databases_created || 0,
-      icon: Database,
+      icon: DatabaseIcon,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100',
     },
