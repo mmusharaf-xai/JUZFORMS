@@ -307,7 +307,12 @@
     "deleteRows": "Eliminar Filas Permanentemente",
     "deleteRowsConfirm": "¿Estás seguro de que quieres eliminar permanentemente {{count}} fila(s)? Esta acción no se puede deshacer.",
     "database": "Base de datos",
-    "rowData": "Datos de fila"
+    "rowData": "Datos de fila",
+    "databasesWithDeletedRows": "Bases de datos con filas eliminadas",
+    "databasesWithDeletedRowsDesc": "Selecciona una base de datos para ver y gestionar sus filas eliminadas",
+    "noDatabasesWithDeletedRows": "No hay bases de datos con filas eliminadas",
+    "viewDeletedRows": "Ver Filas Eliminadas",
+    "deletedRowsCount": "Cantidad de Filas Eliminadas"
   },
   "validation": {
     "required": "{{field}} es requerido",

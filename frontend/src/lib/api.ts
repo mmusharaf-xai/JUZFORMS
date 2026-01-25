@@ -110,6 +110,13 @@ export const databaseApi = {
   },
   restoreDatabase: (id: string) => api.post(`/databases/${id}/restore`),
   permanentDeleteDatabase: (id: string) => api.delete(`/databases/${id}/permanent`),
+  getDatabasesWithDeletedRows: (params?: { search?: string; page?: number; limit?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    return api.get(`/databases/archives/rows/databases?${queryParams.toString()}`);
+  },
   getDeletedRows: (params?: { search?: string; page?: number; limit?: number; database_id?: string }) => {
     const queryParams = new URLSearchParams();
     if (params?.search) queryParams.append('search', params.search);

@@ -106,6 +106,7 @@ export interface Database {
   created_at: string;
   updated_at: string;
   deleted_at?: string;
+  deleted_rows_count?: number;
 }
 
 export interface DatabaseColumn {

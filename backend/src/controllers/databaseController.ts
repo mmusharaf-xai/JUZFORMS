@@ -624,7 +624,7 @@ export const deleteRow = async (
     }
 
     const row = await prisma.databaseRow.findFirst({
-      where: { id: rowId, databaseId: id },
+      where: { id: rowId, databaseId: id, deletedAt: null },
     });
 
     if (!row) {
@@ -632,8 +632,10 @@ export const deleteRow = async (
       return;
     }
 
-    await prisma.databaseRow.delete({
+    // Soft delete the row
+    await prisma.databaseRow.update({
       where: { id: rowId },
+      data: { deletedAt: new Date() },
     });
 
     res.json({ message: 'Row deleted successfully' });
@@ -792,6 +794,90 @@ export const permanentDeleteDatabase = async (
   }
 };
 
+export const getDatabasesWithDeletedRows = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { search, page = 1, limit = 10 } = req.query;
+    const pageNumber = parseInt(page as string, 10) || 1;
+    const pageSize = parseInt(limit as string, 10) || 10;
+    const skip = (pageNumber - 1) * pageSize;
+
+    // Build where clause for databases that are not deleted and have deleted rows
+    const where: any = {
+      userId: req.user!.id,
+      deletedAt: null, // Only active databases
+    };
+
+    if (search && typeof search === 'string' && search.trim()) {
+      where.name = {
+        contains: search.trim(),
+        mode: 'insensitive',
+      };
+    }
+
+    // Get databases that have deleted rows
+    const databasesWithRows = await prisma.database.findMany({
+      where: {
+        ...where,
+        rows: {
+          some: {
+            deletedAt: { not: null },
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            rows: {
+              where: { deletedAt: { not: null } },
+            },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+      skip,
+      take: pageSize,
+    });
+
+    // Get total count
+    const totalCount = await prisma.database.count({
+      where: {
+        ...where,
+        rows: {
+          some: {
+            deletedAt: { not: null },
+          },
+        },
+      },
+    });
+
+    res.json({
+      databases: databasesWithRows.map((db) => ({
+        id: db.id,
+        name: db.name,
+        created_at: db.createdAt,
+        updated_at: db.updatedAt,
+        deleted_rows_count: db._count.rows,
+      })),
+      pagination: {
+        page: pageNumber,
+        limit: pageSize,
+        total: totalCount,
+        pages: Math.ceil(totalCount / pageSize),
+      },
+    });
+  } catch (error) {
+    console.error('Get databases with deleted rows error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const getDeletedRows = async (
   req: AuthRequest,
   res: Response
@@ -807,37 +893,20 @@ export const getDeletedRows = async (
       deletedAt: { not: null },
     };
 
-    // Only show rows from databases that are not permanently deleted
+    // Show rows from the specified database
     if (database_id) {
       where.databaseId = database_id;
-      // Check if database exists and is not deleted
+      // Check if database exists and belongs to user
       const database = await prisma.database.findFirst({
-        where: { id: database_id as string, userId: req.user!.id },
+        where: { id: database_id as string, userId: req.user!.id, deletedAt: null },
       });
       if (!database) {
         res.status(404).json({ error: 'Database not found' });
         return;
       }
-      if (database.deletedAt) {
-        // If database is deleted, don't show rows here
-        res.json({
-          rows: [],
-          pagination: {
-            page: pageNumber,
-            limit: pageSize,
-            total: 0,
-            pages: 0,
-          },
-        });
-        return;
-      }
     } else {
-      // Get databases that are not deleted
-      const activeDatabases = await prisma.database.findMany({
-        where: { userId: req.user!.id, deletedAt: null },
-        select: { id: true },
-      });
-      where.databaseId = { in: activeDatabases.map(db => db.id) };
+      res.status(400).json({ error: 'database_id parameter is required' });
+      return;
     }
 
     // Get total count for pagination

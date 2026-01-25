@@ -305,7 +305,12 @@
     "deleteRows": "Delete Rows Permanently",
     "deleteRowsConfirm": "Are you sure you want to permanently delete {{count}} row(s)? This action cannot be undone.",
     "database": "Database",
-    "rowData": "Row Data"
+    "rowData": "Row Data",
+    "databasesWithDeletedRows": "Databases with Deleted Rows",
+    "databasesWithDeletedRowsDesc": "Select a database to view and manage its deleted rows",
+    "noDatabasesWithDeletedRows": "No databases with deleted rows",
+    "viewDeletedRows": "View Deleted Rows",
+    "deletedRowsCount": "Deleted Rows Count"
   },
   "validation": {
     "required": "{{field}} is required",
