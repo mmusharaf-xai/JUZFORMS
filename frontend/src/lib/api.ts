@@ -131,9 +131,9 @@ export const databaseApi = {
     api.post('/databases/archives/bulk-restore', data),
   bulkDeleteDatabases: (data: { ids?: string[]; selectedAll?: boolean; search: string }) =>
     api.post('/databases/archives/bulk-delete', data),
-  bulkRestoreRows: (data: { ids?: string[]; selectedAll?: boolean; search: string; database_id?: string }) =>
+  bulkRestoreRows: (data: { ids?: string[]; selectedAll?: boolean; search: string; filters?: string; database_id?: string }) =>
     api.post('/databases/archives/rows/bulk-restore', data),
-  bulkDeleteRows: (data: { ids?: string[]; selectedAll?: boolean; search: string; database_id?: string }) =>
+  bulkDeleteRows: (data: { ids?: string[]; selectedAll?: boolean; search: string; filters?: string; database_id?: string }) =>
     api.post('/databases/archives/rows/bulk-delete', data),
 };
 

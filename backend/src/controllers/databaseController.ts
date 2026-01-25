@@ -1282,13 +1282,13 @@ export const bulkRestoreRows = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
-  const { ids, selectedAll, search, database_id } = req.body;
+  const { ids, selectedAll, search, filters, database_id } = req.body;
 
   try {
     let rowsToRestore: { id: string }[];
 
     if (selectedAll) {
-      // Get all rows matching the search criteria
+      // Get all rows matching the search and filter criteria
       const where: any = {
         deletedAt: { not: null },
       };
@@ -1312,10 +1312,77 @@ export const bulkRestoreRows = async (
         where.databaseId = { in: activeDatabases.map(db => db.id) };
       }
 
-      rowsToRestore = await prisma.databaseRow.findMany({
+      // Fetch all deleted rows and apply search/filters
+      const allRows = await prisma.databaseRow.findMany({
         where,
-        select: { id: true },
+        include: {
+          database: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { deletedAt: 'desc' },
       });
+
+      let filteredRows = allRows;
+
+      // Apply search if provided
+      if (search && typeof search === 'string' && search.trim()) {
+        const searchTerm = search.trim().toLowerCase();
+        filteredRows = filteredRows.filter((row) => {
+          const data = row.data as Record<string, unknown>;
+          if (typeof data === 'object' && data !== null) {
+            // Search in all string values in the row data
+            return Object.values(data).some(value =>
+              String(value || '').toLowerCase().includes(searchTerm)
+            );
+          }
+          return false;
+        });
+      }
+
+      // Apply filters if provided
+      if (filters && typeof filters === 'string') {
+        try {
+          // URL-decode if needed
+          const decodedFilters = decodeURIComponent(filters);
+          const filterArray = JSON.parse(decodedFilters) as Array<{
+            column: string;
+            operator: string;
+            value: string;
+          }>;
+
+          filterArray.forEach((filter) => {
+            filteredRows = filteredRows.filter((row) => {
+              const data = row.data as Record<string, unknown>;
+              if (typeof data !== 'object' || data === null || !(filter.column in data)) {
+                return true; // Skip filter if column doesn't exist in data
+              }
+              const value = String(data[filter.column] || '');
+              const filterValue = filter.value;
+
+              switch (filter.operator) {
+                case 'equals':
+                  return value.toLowerCase() === filterValue.toLowerCase();
+                case 'contains':
+                  return value.toLowerCase().includes(filterValue.toLowerCase());
+                case 'starts_with':
+                  return value.toLowerCase().startsWith(filterValue.toLowerCase());
+                case 'ends_with':
+                  return value.toLowerCase().endsWith(filterValue.toLowerCase());
+                default:
+                  return true;
+              }
+            });
+          });
+        } catch {
+          // Invalid filter format, continue without filtering
+        }
+      }
+
+      rowsToRestore = filteredRows.map(row => ({ id: row.id }));
     } else {
       // Use specific IDs
       rowsToRestore = ids.map((id: string) => ({ id }));
@@ -1371,13 +1438,13 @@ export const bulkDeleteRows = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
-  const { ids, selectedAll, search, database_id } = req.body;
+  const { ids, selectedAll, search, filters, database_id } = req.body;
 
   try {
     let rowsToDelete: { id: string }[];
 
     if (selectedAll) {
-      // Get all rows matching the search criteria
+      // Get all rows matching the search and filter criteria
       const where: any = {
         deletedAt: { not: null },
       };
@@ -1401,10 +1468,77 @@ export const bulkDeleteRows = async (
         where.databaseId = { in: activeDatabases.map(db => db.id) };
       }
 
-      rowsToDelete = await prisma.databaseRow.findMany({
+      // Fetch all deleted rows and apply search/filters
+      const allRows = await prisma.databaseRow.findMany({
         where,
-        select: { id: true },
+        include: {
+          database: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { deletedAt: 'desc' },
       });
+
+      let filteredRows = allRows;
+
+      // Apply search if provided
+      if (search && typeof search === 'string' && search.trim()) {
+        const searchTerm = search.trim().toLowerCase();
+        filteredRows = filteredRows.filter((row) => {
+          const data = row.data as Record<string, unknown>;
+          if (typeof data === 'object' && data !== null) {
+            // Search in all string values in the row data
+            return Object.values(data).some(value =>
+              String(value || '').toLowerCase().includes(searchTerm)
+            );
+          }
+          return false;
+        });
+      }
+
+      // Apply filters if provided
+      if (filters && typeof filters === 'string') {
+        try {
+          // URL-decode if needed
+          const decodedFilters = decodeURIComponent(filters);
+          const filterArray = JSON.parse(decodedFilters) as Array<{
+            column: string;
+            operator: string;
+            value: string;
+          }>;
+
+          filterArray.forEach((filter) => {
+            filteredRows = filteredRows.filter((row) => {
+              const data = row.data as Record<string, unknown>;
+              if (typeof data !== 'object' || data === null || !(filter.column in data)) {
+                return true; // Skip filter if column doesn't exist in data
+              }
+              const value = String(data[filter.column] || '');
+              const filterValue = filter.value;
+
+              switch (filter.operator) {
+                case 'equals':
+                  return value.toLowerCase() === filterValue.toLowerCase();
+                case 'contains':
+                  return value.toLowerCase().includes(filterValue.toLowerCase());
+                case 'starts_with':
+                  return value.toLowerCase().startsWith(filterValue.toLowerCase());
+                case 'ends_with':
+                  return value.toLowerCase().endsWith(filterValue.toLowerCase());
+                default:
+                  return true;
+              }
+            });
+          });
+        } catch {
+          // Invalid filter format, continue without filtering
+        }
+      }
+
+      rowsToDelete = filteredRows.map(row => ({ id: row.id }));
     } else {
       // Use specific IDs
       rowsToDelete = ids.map((id: string) => ({ id }));

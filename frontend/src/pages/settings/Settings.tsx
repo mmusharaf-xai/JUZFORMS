@@ -489,6 +489,7 @@ const Settings: React.FC = () => {
           ids: selectedAllRows ? [] : selectedRows,
           selectedAll: selectedAllRows,
           search: searchTermRows.trim(),
+          filters: selectedAllRows && filtersRows.length > 0 ? JSON.stringify(filtersRows) : undefined,
           database_id: selectedRowsDatabase.id,
         };
 
