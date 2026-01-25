@@ -105,6 +105,7 @@ export interface Database {
   name: string;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
 }
 
 export interface DatabaseColumn {
@@ -138,6 +139,8 @@ export interface DatabaseRow {
   data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
+  database_name?: string;
 }
 
 export interface FormSubmission {

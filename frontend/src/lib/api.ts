@@ -81,7 +81,7 @@ export const databaseApi = {
   updateDatabase: (id: string, data: { name: string }) =>
     api.put(`/databases/${id}`, data),
   deleteDatabase: (id: string) => api.delete(`/databases/${id}`),
-  
+
   // Columns
   addColumn: (dbId: string, data: { name: string; type: string; is_unique?: boolean }) =>
     api.post(`/databases/${dbId}/columns`, data),
@@ -89,7 +89,7 @@ export const databaseApi = {
     api.put(`/databases/${dbId}/columns/${colId}`, data),
   deleteColumn: (dbId: string, colId: string) =>
     api.delete(`/databases/${dbId}/columns/${colId}`),
-  
+
   // Rows
   getRows: (dbId: string, params?: { sort_by?: string; sort_order?: string; filters?: string }) =>
     api.get(`/databases/${dbId}/rows`, { params }),
@@ -99,6 +99,35 @@ export const databaseApi = {
     api.put(`/databases/${dbId}/rows/${rowId}`, { data }),
   deleteRow: (dbId: string, rowId: string) =>
     api.delete(`/databases/${dbId}/rows/${rowId}`),
+
+  // Archives
+  getDeletedDatabases: (params?: { search?: string; page?: number; limit?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    return api.get(`/databases/archives/databases?${queryParams.toString()}`);
+  },
+  restoreDatabase: (id: string) => api.post(`/databases/${id}/restore`),
+  permanentDeleteDatabase: (id: string) => api.delete(`/databases/${id}/permanent`),
+  getDeletedRows: (params?: { search?: string; page?: number; limit?: number; database_id?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.database_id) queryParams.append('database_id', params.database_id);
+    return api.get(`/databases/archives/rows?${queryParams.toString()}`);
+  },
+  restoreRow: (id: string) => api.post(`/databases/rows/${id}/restore`),
+  permanentDeleteRow: (id: string) => api.delete(`/databases/rows/${id}/permanent`),
+  bulkRestoreDatabases: (data: { ids?: string[]; selectedAll?: boolean; search: string }) =>
+    api.post('/databases/archives/bulk-restore', data),
+  bulkDeleteDatabases: (data: { ids?: string[]; selectedAll?: boolean; search: string }) =>
+    api.post('/databases/archives/bulk-delete', data),
+  bulkRestoreRows: (data: { ids?: string[]; selectedAll?: boolean; search: string; database_id?: string }) =>
+    api.post('/databases/archives/rows/bulk-restore', data),
+  bulkDeleteRows: (data: { ids?: string[]; selectedAll?: boolean; search: string; database_id?: string }) =>
+    api.post('/databases/archives/rows/bulk-delete', data),
 };
 
 // Stats API
