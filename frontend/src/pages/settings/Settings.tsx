@@ -93,6 +93,7 @@ const Settings: React.FC = () => {
   const [filtersRows, setFiltersRows] = useState<FilterState[]>([]);
   const [tempFiltersRows, setTempFiltersRows] = useState<FilterState[]>([]);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [isApplyingFilters, setIsApplyingFilters] = useState(false);
   const [isLoadingRowsDatabases, setIsLoadingRowsDatabases] = useState(false);
   const [isLoadingRows, setIsLoadingRows] = useState(false);
   const [currentPageRowsDatabases, setCurrentPageRowsDatabases] = useState(1);
@@ -610,24 +611,31 @@ const Settings: React.FC = () => {
 
   // Filter functions
   const addFilterRow = () => {
-    setTempFiltersRows([...tempFiltersRows, { column: '', operator: 'equals', value: '' }]);
+    if (archivedRowsColumns.length > 0) {
+      setTempFiltersRows([...tempFiltersRows, { column: archivedRowsColumns[0].name, operator: 'equals', value: '' }]);
+    }
   };
 
   const updateTempFilterRow = (index: number, updates: Partial<FilterState>) => {
-    const updated = [...tempFiltersRows];
-    updated[index] = { ...updated[index], ...updates };
-    setTempFiltersRows(updated);
+    const newFilters = [...tempFiltersRows];
+    newFilters[index] = { ...newFilters[index], ...updates };
+    setTempFiltersRows(newFilters);
   };
 
   const removeFilterRow = (index: number) => {
     setTempFiltersRows(tempFiltersRows.filter((_, i) => i !== index));
   };
 
-  const applyFiltersRows = () => {
-    setFiltersRows([...tempFiltersRows]);
-    setIsFilterDrawerOpen(false);
-    if (selectedRowsDatabase) {
-      loadArchivedRows(selectedRowsDatabase.id, 1, searchTermRows, tempFiltersRows);
+  const applyFiltersRows = async () => {
+    setIsApplyingFilters(true);
+    try {
+      setFiltersRows([...tempFiltersRows]);
+      setIsFilterDrawerOpen(false);
+      if (selectedRowsDatabase) {
+        await loadArchivedRows(selectedRowsDatabase.id, 1, searchTermRows, tempFiltersRows);
+      }
+    } finally {
+      setIsApplyingFilters(false);
     }
   };
 
@@ -1371,13 +1379,29 @@ const Settings: React.FC = () => {
                                 className="max-w-sm"
                               />
                               {selectedRowsDatabase && (
-                                <Button
-                                  variant={filtersRows.length > 0 ? 'default' : 'outline'}
-                                  onClick={openFilterDrawer}
-                                >
-                                  <Filter className="h-4 w-4 mr-2" />
-                                  {t('common.filters')} {filtersRows.length > 0 && `(${filtersRows.length})`}
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant={filtersRows.length > 0 ? 'default' : 'outline'}
+                                    onClick={openFilterDrawer}
+                                  >
+                                    <Filter className="h-4 w-4 mr-2" />
+                                    {t('common.filters')} {filtersRows.length > 0 && `(${filtersRows.length})`}
+                                  </Button>
+                                  {filtersRows.length > 0 && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setFiltersRows([]);
+                                        if (selectedRowsDatabase) {
+                                          loadArchivedRows(selectedRowsDatabase.id, 1, searchTermRows, []);
+                                        }
+                                      }}
+                                    >
+                                      {t('common.clearAll')}
+                                    </Button>
+                                  )}
+                                </div>
                               )}
                               <div className="flex gap-2">
                                 <Button
@@ -1679,11 +1703,18 @@ const Settings: React.FC = () => {
             </div>
           </DrawerContent>
           <DrawerFooter>
-            <Button variant="outline" onClick={clearFiltersRows}>
-              {t('common.clearAll')}
+            <Button variant="outline" onClick={() => setIsFilterDrawerOpen(false)} disabled={isApplyingFilters}>
+              {t('common.cancel')}
             </Button>
-            <Button onClick={applyFiltersRows}>
-              {t('database.applyFilters')}
+            <Button onClick={applyFiltersRows} disabled={isApplyingFilters}>
+              {isApplyingFilters ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  {t('database.applyFilters')}
+                </>
+              ) : (
+                t('database.applyFilters')
+              )}
             </Button>
           </DrawerFooter>
         </Drawer>

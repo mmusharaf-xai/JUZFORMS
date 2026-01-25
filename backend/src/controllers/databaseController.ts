@@ -429,9 +429,11 @@ export const getRows = async (
     let filteredRows = allRows;
 
     // Apply filters if provided
-    if (filters) {
+    if (filters && typeof filters === 'string') {
       try {
-        const filterArray = JSON.parse(filters as string) as Array<{
+        // URL-decode if needed
+        const decodedFilters = decodeURIComponent(filters);
+        const filterArray = JSON.parse(decodedFilters) as Array<{
           column: string;
           operator: string;
           value: string;
@@ -970,9 +972,11 @@ export const getDeletedRows = async (
     }
 
     // Apply filters if provided
-    if (filters) {
+    if (filters && typeof filters === 'string') {
       try {
-        const filterArray = JSON.parse(filters as string) as Array<{
+        // URL-decode if needed
+        const decodedFilters = decodeURIComponent(filters);
+        const filterArray = JSON.parse(decodedFilters) as Array<{
           column: string;
           operator: string;
           value: string;
