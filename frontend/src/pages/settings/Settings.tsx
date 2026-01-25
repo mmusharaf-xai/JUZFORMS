@@ -1462,7 +1462,7 @@ const Settings: React.FC = () => {
                                     <TableRow>
                                       <TableHead className="w-12">
                                         <Checkbox
-                                          checked={selectedAllRows || (archivedRows.length > 0 && archivedRows.every(row => selectedRows.includes(row.id)))}
+                                          checked={selectedAllRows || (archivedRows.length > 0 && archivedRows.every(row => selectedRows.includes(row.id.toString())))}
                                           onCheckedChange={handleSelectAllRows}
                                         />
                                       </TableHead>
@@ -1481,8 +1481,8 @@ const Settings: React.FC = () => {
                                       <TableRow key={row.id}>
                                         <TableCell>
                                           <Checkbox
-                                            checked={selectedAllRows || selectedRows.includes(row.id)}
-                                            onCheckedChange={(checked) => handleSelectRow(row.id, checked as boolean)}
+                                            checked={selectedAllRows || selectedRows.includes(row.id.toString())}
+                                            onCheckedChange={(checked) => handleSelectRow(row.id.toString(), checked as boolean)}
                                           />
                                         </TableCell>
                                         {archivedRowsColumns.map((column) => (

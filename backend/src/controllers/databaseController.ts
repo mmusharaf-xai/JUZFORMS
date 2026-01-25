@@ -564,7 +564,7 @@ export const updateRow = async (
   res: Response
 ): Promise<void> => {
   const id = req.params.id as string;
-  const rowId = req.params.rowId as string;
+  const rowId = parseInt(req.params.rowId as string, 10);
   const { data } = req.body;
 
   try {
@@ -639,7 +639,7 @@ export const deleteRow = async (
   res: Response
 ): Promise<void> => {
   const id = req.params.id as string;
-  const rowId = req.params.rowId as string;
+  const rowId = parseInt(req.params.rowId as string, 10);
 
   try {
     // Check if database belongs to user
@@ -1050,7 +1050,7 @@ export const restoreRow = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
-  const id = req.params.id as string;
+  const id = parseInt(req.params.id as string, 10);
 
   try {
     const row = await prisma.databaseRow.findFirst({
@@ -1093,7 +1093,7 @@ export const permanentDeleteRow = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
-  const id = req.params.id as string;
+  const id = parseInt(req.params.id as string, 10);
 
   try {
     const row = await prisma.databaseRow.findFirst({
@@ -1286,7 +1286,7 @@ export const bulkRestoreRows = async (
   const { ids, selectedAll, search, filters, database_id } = req.body;
 
   try {
-    let rowsToRestore: { id: string }[];
+    let rowsToRestore: { id: number }[];
 
     if (selectedAll) {
       // Get all rows matching the search and filter criteria
@@ -1442,7 +1442,7 @@ export const bulkDeleteRows = async (
   const { ids, selectedAll, search, filters, database_id } = req.body;
 
   try {
-    let rowsToDelete: { id: string }[];
+    let rowsToDelete: { id: number }[];
 
     if (selectedAll) {
       // Get all rows matching the search and filter criteria
@@ -1542,12 +1542,13 @@ export const bulkDeleteRows = async (
       rowsToDelete = filteredRows.map(row => ({ id: row.id }));
     } else {
       // Use specific IDs
-      rowsToDelete = ids.map((id: string) => ({ id }));
+      const numericIds = ids.map((id: string) => parseInt(id, 10));
+      rowsToDelete = numericIds.map((id: number) => ({ id }));
 
       // Verify all rows are deleted and belong to user's databases
       const existingRows = await prisma.databaseRow.findMany({
         where: {
-          id: { in: ids },
+          id: { in: numericIds },
           deletedAt: { not: null },
         },
         include: {

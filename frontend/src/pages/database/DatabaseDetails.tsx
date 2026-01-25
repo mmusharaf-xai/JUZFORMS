@@ -153,7 +153,7 @@ const DatabaseDetails: React.FC = () => {
 
     try {
       if (editingRow) {
-        await databaseApi.updateRow(id, editingRow.id, rowForm);
+        await databaseApi.updateRow(id, editingRow.id.toString(), rowForm);
       } else {
         await databaseApi.addRow(id, rowForm);
       }
@@ -172,7 +172,7 @@ const DatabaseDetails: React.FC = () => {
     if (!id || !deletingRow) return;
 
     try {
-      await databaseApi.deleteRow(id, deletingRow.id);
+      await databaseApi.deleteRow(id, deletingRow.id.toString());
       setIsDeleteRowDialogOpen(false);
       setDeletingRow(null);
       fetchData();
