@@ -833,7 +833,7 @@ const Settings: React.FC = () => {
                       </div>
                     ) : archivedForms.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
-                        {searchTerm ? t('archives.noFormsMatch') : t('archives.noDeletedForms')}
+                        {searchTermForms ? t('archives.noFormsMatch') : t('archives.noDeletedForms')}
                       </div>
                     ) : (
                       <>
